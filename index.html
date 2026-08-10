@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#f4f1ea" />
+  <meta name="description" content="いつもの一日に、小さな寄り道を。日常採集のローカルモック。" />
+  <title>日常採集｜小さな寄り道</title>
+  <link rel="stylesheet" href="styles.css?v=8" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#today" data-screen-link="today" aria-label="日常採集・今日へ"><span class="brand-mark" aria-hidden="true">日</span>日常<span class="brand-accent">採集</span></a>
+      <p class="privacy-note"><span aria-hidden="true">●</span> この端末だけに保存</p>
+    </header>
+    <main>
+      <section class="screen is-active" id="screen-today" data-screen="today" aria-labelledby="today-title">
+        <div class="screen-inner today-inner">
+          <div class="date-line"><span class="eyebrow">TODAY'S FIND</span><time id="today-date"></time></div>
+          <div class="today-heading"><p class="kicker">TODAY'S DETOUR</p><h1 id="today-title" tabindex="-1">いつもの一日に、<br><em>小さな寄り道</em>を。</h1><p class="lead">一枚持ち帰る日も、余白にする日も。<br>今日の自分に、少しだけ目を向けてみる。</p></div>
+
+          <div id="day-complete" class="notice" hidden></div>
+          <div id="stale-draft-banner" class="notice notice-warm" hidden><p>昨日の採集が途中です。どうしますか？</p><div class="inline-actions"><button id="finish-stale" class="small-button" type="button">仕上げる</button><button id="discard-stale" class="small-button small-button-ghost" type="button">破棄する</button></div></div>
+
+          <section id="mood-step" class="step-panel">
+            <fieldset id="mood-form"><legend>今日は、どんな気分になりたい？</legend><p class="field-help">これから得たい気分に合わせて、今日の寄り道をひとつ提案します。</p>
+              <div class="mood-options">
+                <label><input type="radio" name="mood" value="calm"><span>気持ちを<br>整えたい</span></label>
+                <label><input type="radio" name="mood" value="refresh"><span>気分を<br>変えたい</span></label>
+                <label><input type="radio" name="mood" value="adventure"><span>小さく<br>冒険したい</span></label>
+                <label><input type="radio" name="mood" value="surprise"><span>おまかせ</span></label>
+              </div>
+            </fieldset>
+          </section>
+
+          <section id="proposal-step" class="step-panel" hidden aria-labelledby="proposal-heading">
+            <p class="kicker">TODAY'S DETOUR <span class="mock-label">モック</span></p><h2 id="proposal-heading" tabindex="-1">今日の寄り道</h2>
+            <article class="mission-card" aria-live="polite"><div class="mission-meta"><span id="proposal-mood"></span><span id="mission-duration"></span></div><h3 id="mission-title"></h3><p id="mission-instruction"></p><p class="mission-mode" id="mission-mode"></p></article>
+            <div class="proposal-actions"><button id="start-mission" class="button button-primary" type="button">この寄り道をはじめる <span aria-hidden="true">→</span></button><button id="toggle-indoor" class="button button-quiet" type="button">室内版を見る</button><button id="choose-new-mission" class="text-button" type="button">別の提案にする</button></div>
+            <button id="save-blank" class="blank-link" type="button">今日は余白にする</button>
+          </section>
+
+          <section id="active-step" class="step-panel" hidden aria-labelledby="active-mission-title">
+            <p class="kicker">ON A DETOUR</p><article class="active-card"><p>いま採集中</p><h2 id="active-mission-title" tabindex="-1"></h2><p id="active-mission-instruction"></p><span id="active-mission-meta"></span></article>
+            <input id="photo-input" type="file" accept="image/*" capture="environment" hidden>
+            <button id="capture-photo" class="button button-primary" type="button">一枚を持ち帰る <span aria-hidden="true">＋</span></button><button id="cancel-mission" class="text-button" type="button">寄り道をやめる</button>
+          </section>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-record" data-screen="record" aria-labelledby="record-title" hidden><div class="screen-inner">
+        <button id="back-to-active" class="back-button" type="button">← 採集中に戻る</button><div class="screen-heading"><p class="kicker">ONE PHOTO</p><h1 id="record-title" tabindex="-1">一枚を<br><em>持ち帰る。</em></h1><p class="lead">この一枚から、今日の発見を残します。</p></div>
+        <div class="photo-stage"><img id="photo-preview" alt="選んだ写真のプレビュー" hidden><div class="photo-placeholder">写真を準備しています</div></div>
+        <article class="question-card"><p class="question-label">発見を残す一問 <span class="mock-label">モック</span></p><p class="question-text" id="question-text"></p><label for="answer-input">あなたの一言 <span>任意</span></label><textarea id="answer-input" rows="4" maxlength="120" placeholder="短くても、空欄でも大丈夫です"></textarea><div class="answer-footer"><span id="answer-count">0 / 120</span><button id="skip-answer" class="text-button" type="button">答えずに進む</button></div></article>
+        <button id="make-card" class="button button-primary full-button" type="button">採集記録を見る <span aria-hidden="true">→</span></button>
+      </div></section>
+
+      <section class="screen" id="screen-card" data-screen="card" aria-labelledby="card-title" hidden><div class="screen-inner">
+        <button id="back-to-record" class="back-button" type="button">← 発見を残す一問へ</button><div class="screen-heading compact-heading"><p class="kicker">YOUR COLLECTION</p><h1 id="card-title" tabindex="-1">採集記録</h1></div>
+        <article id="daily-card" class="daily-card" aria-live="polite"></article><div class="card-actions"><button id="save-card" class="button button-primary full-button" type="button">採集帳に保存する <span aria-hidden="true">→</span></button></div><p class="ai-disclaimer">お題と記録から作ったモックです。写真そのものは解析していません。</p>
+      </div></section>
+
+      <section class="screen" id="screen-collection" data-screen="collection" aria-labelledby="collection-title" hidden><div class="screen-inner">
+        <div class="screen-heading"><p class="kicker">COLLECTION BOOK</p><h1 id="collection-title" tabindex="-1">採集帳</h1><p class="lead">持ち帰った一枚と、今日の余白。</p></div>
+        <article id="perspective-report" class="perspective-report"><p class="kicker">YOUR PERSPECTIVE <span class="mock-label">モック</span></p><h2 id="perspective-title">視点は、これから。</h2><p id="perspective-body">採集が3件たまると、持ち帰りやすい視点をそっとお知らせします。</p><p id="perspective-note" class="report-note">採集のお題と記録から作ったモックです。写真そのものは解析していません。</p></article>
+        <div class="collection-toolbar"><h2>あなたの採集 <span id="collection-count">0件</span></h2><button id="reset-data" class="text-button danger-button" type="button">すべてリセット</button></div><div id="collection-list" class="collection-list"></div><div id="collection-empty" class="empty-state" hidden><p>まだ採集した日がありません。<br>今日の寄り道から始めてみませんか。</p><button class="small-button" data-screen-link="today" type="button">今日へ戻る</button></div>
+      </div></section>
+    </main>
+    <nav class="bottom-nav" aria-label="メインナビゲーション"><button class="nav-item is-active" type="button" data-screen-link="today" aria-current="page"><span aria-hidden="true">○</span>今日</button><button class="nav-item" type="button" data-screen-link="collection"><span aria-hidden="true">▱</span>採集帳</button></nav>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <dialog id="confirm-dialog" aria-labelledby="confirm-title"><h2 id="confirm-title">確認</h2><p id="confirm-body"></p><div class="dialog-actions"><button id="confirm-cancel" class="button button-quiet" type="button">やめる</button><button id="confirm-accept" class="button button-primary" type="button">続ける</button></div></dialog>
+  </div>
+  <script src="mission-data.js?v=8"></script>
+  <script src="app.js?v=8"></script>
+</body>
+</html>
