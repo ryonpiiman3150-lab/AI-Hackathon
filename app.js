@@ -1,23 +1,56 @@
 (() => {
   "use strict";
 
-  const DB_NAME = "nichijo-shusai", DB_VERSION = 1, LEGACY_KEY = "nichijo-shusai-cards-v1";
+  const DB_NAME = "nichijo-shusai", DB_VERSION = 2, LEGACY_KEY = "nichijo-shusai-cards-v1", SESSION_KEY = "nichijo-shusai-session-v1";
+  const TEST_USERS = [
+    { id: "demo-user-2", password: "demo-user-2", name: "デモユーザー2" },
+    { id: "demo-user-1", password: "demo-user-1", name: "デモユーザー1" }
+  ];
+  const FEED_POSTS = [
+    { id: "mado", name: "あやの", initial: "あ", date: "2026-08-10", moods: ["calm", "surprise"], title: "窓のそばの光", text: "いつもの窓辺なのに、朝の光が少しやわらかく見えた。", visual: "window" },
+    { id: "michi", name: "はるき", initial: "は", date: "2026-08-09", moods: ["refresh", "adventure"], title: "今日の一色", text: "いつもの道で、目に残る色をひとつ見つけた。", visual: "street" },
+    { id: "midori", name: "りょうこ", initial: "り", date: "2026-08-08", moods: ["calm", "refresh"], title: "すき間の緑", text: "葉っぱを一枚見つけただけで、部屋に余白ができた。", visual: "plant" },
+    { id: "kage", name: "ゆう", initial: "ゆ", date: "2026-08-07", moods: ["adventure", "surprise"], title: "影の居場所", text: "立ち止まってみたら、足元にも景色があった。", visual: "shadow" }
+  ];
+  const MOOD_NEIGHBORS = { calm: ["refresh", "surprise"], refresh: ["calm", "adventure"], adventure: ["refresh", "surprise"], surprise: ["calm", "adventure"] };
+  const SEED_COPY = [
+    "朝の光が、いつもより少しやわらかく見えた。",
+    "通り過ぎそうな色に、今日は立ち止まれた。",
+    "葉の重なりに、小さな季節を見つけた。",
+    "足元の影が、時間をゆっくりにしてくれた。",
+    "窓の外の静けさを、一枚に残しておく。",
+    "遠回りした道で、見慣れない形に出会った。",
+    "いつもの棚にも、気づかなかった余白がある。",
+    "少し低い目線で見ると、景色が新しかった。",
+    "夕方の色が、今日の終わりを教えてくれた。",
+    "何気ない一枚を持ち帰れて、少し満足した。"
+  ];
   const $ = (id) => document.getElementById(id);
   const $$ = (s) => [...document.querySelectorAll(s)];
   const data = window.NICHIJO_DATA || { moods: [], missions: [], reportTemplates: {} };
-  const state = { screen: "today", dateKey: localDateKey(), draft: null, pending: null, objectUrl: null, collectionUrls: [], saving: false, finishingStale: false };
+  const state = { screen: "today", dateKey: localDateKey(), draft: null, pending: null, objectUrl: null, collectionUrls: [], feedUrls: [], saving: false, finishingStale: false, user: null, presentationIndex: -1 };
   let db;
 
   function localDateKey(d = new Date()) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
   function labelDate(k = localDateKey()) { const [y,m,d]=k.split("-").map(Number); return new Intl.DateTimeFormat("ja-JP",{year:"numeric",month:"long",day:"numeric",weekday:"short"}).format(new Date(y,m-1,d)); }
   const esc = (v="") => String(v).replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]));
   function toast(message) { const el=$("toast"); if (!el) return; el.textContent=message; el.classList.add("is-visible"); clearTimeout(toast.t); toast.t=setTimeout(()=>el.classList.remove("is-visible"),3000); }
-  function openDB() { return new Promise((resolve,reject)=>{ const r=indexedDB.open(DB_NAME,DB_VERSION); r.onupgradeneeded=()=>{const d=r.result; if(!d.objectStoreNames.contains("entries"))d.createObjectStore("entries",{keyPath:"dateKey"}); if(!d.objectStoreNames.contains("drafts"))d.createObjectStore("drafts",{keyPath:"dateKey"}); if(!d.objectStoreNames.contains("meta"))d.createObjectStore("meta",{keyPath:"key"});}; r.onsuccess=()=>resolve(r.result); r.onerror=()=>reject(r.error); }); }
+  function openDB() { return new Promise((resolve,reject)=>{ const r=indexedDB.open(DB_NAME,DB_VERSION); r.onupgradeneeded=()=>{const d=r.result; if(!d.objectStoreNames.contains("entries"))d.createObjectStore("entries",{keyPath:"dateKey"}); if(!d.objectStoreNames.contains("drafts"))d.createObjectStore("drafts",{keyPath:"dateKey"}); if(!d.objectStoreNames.contains("meta"))d.createObjectStore("meta",{keyPath:"key"}); if(!d.objectStoreNames.contains("userEntries"))d.createObjectStore("userEntries",{keyPath:"id"}); if(!d.objectStoreNames.contains("userDrafts"))d.createObjectStore("userDrafts",{keyPath:"id"});}; r.onsuccess=()=>resolve(r.result); r.onerror=()=>reject(r.error); }); }
   function tx(store, mode, fn) { return new Promise((resolve,reject)=>{ const t=db.transaction(store,mode), s=t.objectStore(store); let result; try { result=fn(s); } catch(e){reject(e);return;} t.oncomplete=()=>resolve(result); t.onerror=()=>reject(t.error); }); }
-  const get = (s,k) => new Promise((resolve,reject)=>{const r=db.transaction(s).objectStore(s).get(k);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
-  const all = (s) => new Promise((resolve,reject)=>{const r=db.transaction(s).objectStore(s).getAll();r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error);});
-  const put = (s,v) => tx(s,"readwrite",x=>x.put(v));
-  const del = (s,k) => tx(s,"readwrite",x=>x.delete(k));
+  const rawGet = (s,k) => new Promise((resolve,reject)=>{const r=db.transaction(s).objectStore(s).get(k);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
+  const rawAll = (s) => new Promise((resolve,reject)=>{const r=db.transaction(s).objectStore(s).getAll();r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error);});
+  const rawPut = (s,v) => tx(s,"readwrite",x=>x.put(v));
+  const rawDel = (s,k) => tx(s,"readwrite",x=>x.delete(k));
+  const scoped = (s) => ["entries", "drafts"].includes(s) && Boolean(state.user);
+  const scopedStore = (s) => s === "entries" ? "userEntries" : "userDrafts";
+  const scopedId = (key) => `${state.user.id}:${key}`;
+  const get = (s,k) => scoped(s) ? rawGet(scopedStore(s), scopedId(k)) : rawGet(s,k);
+  const all = async (s) => scoped(s) ? (await rawAll(scopedStore(s))).filter((item) => item.userId === state.user.id) : rawAll(s);
+  const put = (s,v) => scoped(s) ? rawPut(scopedStore(s), { ...v, id: scopedId(v.dateKey), userId: state.user.id }) : rawPut(s,v);
+  const del = (s,k) => scoped(s) ? rawDel(scopedStore(s), scopedId(k)) : rawDel(s,k);
+  function dateDaysAgo(days) { const date = new Date(); date.setHours(12, 0, 0, 0); date.setDate(date.getDate() - days); return localDateKey(date); }
+  async function seedDemoEntries() { const marker = await get("meta", "demo-logs-v1"); if (marker?.done) return; for (const [userIndex, user] of TEST_USERS.entries()) { for (let offset = 0; offset < 10; offset += 1) { const dateKey = dateDaysAgo(offset); const id = `${user.id}:${dateKey}`; if (await rawGet("userEntries", id)) continue; const mission = data.missions[(offset + userIndex * 3) % data.missions.length]; const createdAt = new Date(`${dateKey}T${String(9 + userIndex).padStart(2, "0")}:00:00`).getTime(); await rawPut("userEntries", { id, userId: user.id, dateKey, kind: "photo", mood: mission.moodTypes[0], missionId: mission.id, noveltyType: mission.noveltyType, tags: mission.perspectiveTags, analysisEligible: true, mode: offset % 3 === 0 ? "indoor" : "outdoor", answer: SEED_COPY[(offset + userIndex * 2) % SEED_COPY.length], question: mission.question, title: mission.title, instruction: mission.instruction, photoBlob: null, sampleVisual: ["window", "street", "plant"][offset % 3], createdAt, updatedAt: createdAt, legacy: false, seeded: true }); } } await put("meta", { key: "demo-logs-v1", done: true, updatedAt: Date.now() }); }
+  async function resetDemoEntries() { const entries = await rawAll("userEntries"); await Promise.all(entries.filter((entry) => entry.seeded).map((entry) => rawDel("userEntries", entry.id))); await rawDel("meta", "demo-logs-v1"); await seedDemoEntries(); }
   function confirmDialog(title, body) { return new Promise(resolve=>{ const d=$("confirm-dialog"); if(!d){resolve(window.confirm(`${title}\n${body}`));return;} let settled=false; const done=v=>{if(settled)return;settled=true;d.removeEventListener("cancel",cancel);d.close();resolve(v);},cancel=e=>{e.preventDefault();done(false)}; $("confirm-title").textContent=title; $("confirm-body").textContent=body; $("confirm-accept").onclick=()=>done(true); $("confirm-cancel").onclick=()=>done(false); d.addEventListener("cancel",cancel); d.showModal(); }); }
   function focusHeading() { requestAnimationFrame(()=>{const h=$("screen-"+state.screen)?.querySelector("h1"); if(h){h.setAttribute("tabindex","-1");h.focus({preventScroll:true});}}); }
   function navigate(name) {
@@ -29,6 +62,10 @@
     if (name !== "collection") {
       state.collectionUrls.forEach(URL.revokeObjectURL);
       state.collectionUrls = [];
+    }
+    if (name !== "feed") {
+      state.feedUrls.forEach(URL.revokeObjectURL);
+      state.feedUrls = [];
     }
     state.screen = name;
     $$(".screen").forEach((screen) => {
@@ -144,8 +181,9 @@
   function makeEntry(kind){const m=missionById(state.draft.missionId); return {dateKey:state.draft.dateKey||state.dateKey,kind,missionId:m?.id||null,noveltyType:m?.noveltyType||null,tags:kind==="photo"?(m?.perspectiveTags||[]):[],analysisEligible:kind==="photo",mood:state.draft.mood,mode:state.draft.mode,answer:state.draft.answer||"",question:m?.question||"",title:m?.title||"",instruction:state.draft.mode==="indoor"?(m?.indoorInstruction||""):(m?.instruction||""),photoBlob:kind==="photo"?state.draft.photoBlob:null,createdAt:Date.now(),updatedAt:Date.now(),legacy:false};}
   function renderCard(){const x=state.pending;const el=$("daily-card"); if(!x||!el)return; if(x.kind==="blank"){el.innerHTML=`<div class="daily-card-blank"><span>✳</span><p>余白の日</p><h2>今日は、<em>余白にしました。</em></h2><time>${esc(labelDate(x.dateKey))}</time></div>`;return;} preview(x.photoBlob); const u=state.objectUrl;el.innerHTML=`<img class="daily-card-photo" src="${u}" alt="今日選んだ写真"><div class="daily-card-copy"><p>今日の寄り道</p><h2>${esc(x.title)}</h2><p>${esc(x.answer||"まだ言葉にしていない。")}</p></div>`;}
   async function saveEntry(){if(!state.pending||state.saving)return;if(!await ensureCurrentDate())return;state.saving=true;const button=$("save-card");if(button)button.disabled=true;try{const old=await get("entries",state.pending.dateKey);if(old){if(old.kind==="photo"&&state.pending.kind==="blank")throw new Error("photo-to-blank");if(!await confirmDialog("今日の記録を更新しますか？","保存すると既存の採集記録を置き換えます。"))return;state.pending.createdAt=old.createdAt;state.pending.updatedAt=Date.now();}await put("entries",state.pending);await del("drafts",state.pending.dateKey);state.draft=null;state.pending=null;state.finishingStale=false;toast("採集帳に保存しました。");if(state.dateKey!==localDateKey()){state.dateKey=localDateKey();state.draft=await get("drafts",state.dateKey);await renderToday();}await renderCollection();navigate("collection");}catch(e){toast(e.message==="photo-to-blank"?"写真の記録を余白へ変更することはできません。":"保存できませんでした。下書きは保持しています。再試行してください。");}finally{state.saving=false;if(button)button.disabled=false;}}
-  async function renderCollection(){state.collectionUrls.forEach(URL.revokeObjectURL);state.collectionUrls=[];const entries=(await all("entries")).sort((a,b)=>b.createdAt-a.createdAt); $("collection-count").textContent=`持ち帰った景色 ${entries.filter(x=>x.kind==="photo").length}枚`; const list=$("collection-list"),empty=$("collection-empty");empty.hidden=!!entries.length; list.innerHTML=""; for(const x of entries){let visual=x.kind==="photo"&&x.photoBlob?`<img alt="${esc(labelDate(x.dateKey))}の採集写真">`:"<div class=\"entry-blank\">✳</div>"; const a=document.createElement("article");a.className="collection-entry";a.innerHTML=`${visual}<div><time>${esc(labelDate(x.dateKey))}</time><h3>${esc(x.kind==="blank"?"今日は余白にしました。":x.title||"採集記録")}</h3><p>${esc(x.answer||x.instruction||"")}</p><button type="button" class="text-button" data-delete="${x.dateKey}">削除</button></div>`; if(x.kind==="photo"&&x.photoBlob){const u=URL.createObjectURL(x.photoBlob);state.collectionUrls.push(u);a.querySelector("img").src=u;}list.append(a);} list.querySelectorAll("[data-delete]").forEach(b=>b.onclick=async()=>{if(await confirmDialog("この記録を削除しますか？","削除すると元に戻せません。")){await del("entries",b.dataset.delete);await renderCollection();}}); renderReport(entries);}
+  async function renderCollection(){state.collectionUrls.forEach(URL.revokeObjectURL);state.collectionUrls=[];const entries=(await all("entries")).sort((a,b)=>b.createdAt-a.createdAt); $("collection-count").textContent=`持ち帰った景色 ${entries.filter(x=>x.kind==="photo").length}枚`; const list=$("collection-list"),empty=$("collection-empty");empty.hidden=!!entries.length; list.innerHTML=""; for(const x of entries){let visual=x.kind==="photo"&&x.photoBlob?`<img alt="${esc(labelDate(x.dateKey))}の採集写真">`:x.sampleVisual?`<img class="seed-photo seed-photo-${esc(x.sampleVisual)}" src="assets/timeline-sample-strip.png" alt="${esc(labelDate(x.dateKey))}のサンプル採集写真">`:"<div class=\"entry-blank\">✳</div>"; const a=document.createElement("article");a.className="collection-entry";a.innerHTML=`${visual}<div><time>${esc(labelDate(x.dateKey))}</time><h3>${esc(x.kind==="blank"?"今日は余白にしました。":x.title||"採集記録")}</h3><p>${esc(x.answer||x.instruction||"")}</p><button type="button" class="text-button" data-delete="${x.dateKey}">削除</button></div>`; if(x.kind==="photo"&&x.photoBlob){const u=URL.createObjectURL(x.photoBlob);state.collectionUrls.push(u);a.querySelector("img").src=u;}list.append(a);} list.querySelectorAll("[data-delete]").forEach(b=>b.onclick=async()=>{if(await confirmDialog("この記録を削除しますか？","削除すると元に戻せません。")){await del("entries",b.dataset.delete);await renderCollection();}}); renderReport(entries);}
   function renderReport(entries){const eligible=entries.filter(x=>x.kind==="photo"&&x.analysisEligible!==false&&!x.legacy&&x.tags?.length).slice(0,7),title=$("perspective-title"),body=$("perspective-body"),note=$("perspective-note"),box=$("perspective-report");if(!box)return;note.textContent="採集のお題と記録から作ったモックです。写真そのものは解析していません。";let next=box.querySelector(".report-next");if(eligible.length<3){title.textContent="視点は、ゆっくり育ちます。";body.textContent="3枚以上の採集がたまると、よく持ち帰る視点をお知らせします。ノルマではありません。";next?.remove();return;}const counts=new Map(),recent=new Map();eligible.forEach((e,i)=>e.tags.forEach(t=>{counts.set(t,(counts.get(t)||0)+1);if(!recent.has(t))recent.set(t,i);}));const tag=[...counts].sort((a,b)=>b[1]-a[1]||recent.get(a[0])-recent.get(b[0]))[0][0],tpl=data.reportTemplates[tag]||{};title.textContent=tpl.headline||"あなたの視点レポート";body.textContent=tpl.body||`最近のあなたは、「${tag}」をよく持ち帰っています。`;if(tpl.nextPrompt){next??=Object.assign(document.createElement("p"),{className:"report-next"});next.textContent=tpl.nextPrompt;box.append(next);}else next?.remove();}
+  async function renderFeed() { state.feedUrls.forEach(URL.revokeObjectURL); state.feedUrls = []; const entry = await get("entries", state.dateKey); const mood = state.draft?.mood || entry?.mood; const score = (postMood) => postMood === mood ? 2 : MOOD_NEIGHBORS[mood]?.includes(postMood) ? 1 : 0; const posts = (await rawAll("userEntries")).filter((item) => item.kind === "photo").map((item) => ({ ...item, user: TEST_USERS.find((user) => user.id === item.userId) })).filter((item) => item.user).sort((a, b) => score(b.mood) - score(a.mood) || b.createdAt - a.createdAt); $("feed-lead").textContent = mood ? "選んだ気分にぴったりの景色、少し近い景色の順に並べています。" : "気分を選ぶと、近い投稿を先に並べます。"; $("feed-list").innerHTML = posts.map((post, index) => `<article class="feed-post"><header><span class="feed-avatar">${esc(post.user.name.slice(0, 1))}</span><div><h2>${esc(post.user.name)}${post.userId === state.user.id ? " <span class=\"own-label\">あなたの記録</span>" : ""}</h2><time>${esc(labelDate(post.dateKey))}</time></div></header>${post.photoBlob ? `<img class="feed-photo" data-feed-photo="${index}" alt="${esc(post.title)}の採集写真">` : `<div class="feed-visual feed-visual-${esc(post.sampleVisual || "window")}" role="img" aria-label="${esc(post.title)}のサンプル写真"></div>`}<div class="feed-copy"><p>${score(post.mood) === 2 ? "いまの気分にぴったり" : score(post.mood) === 1 ? "いまの気分に少し近い" : "ちがう気分の景色"}</p><h3>${esc(post.title)}</h3><p>${esc(post.answer)}</p></div></article>`).join(""); posts.forEach((post, index) => { if (post.photoBlob) { const url = URL.createObjectURL(post.photoBlob); state.feedUrls.push(url); $("feed-list").querySelector(`[data-feed-photo="${index}"]`).src = url; } }); }
   function compress(file) {
     return new Promise((resolve, reject) => {
       if (!file?.type.startsWith("image/")) {
@@ -181,6 +219,56 @@
   }
   function dataUrlBlob(value){const m=/^data:([^;,]+)?(?:;base64)?,(.*)$/s.exec(value||"");if(!m)throw new Error("invalid-data-url");const binary=atob(m[2]),bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);return new Blob([bytes],{type:m[1]||"image/jpeg"});}
   async function migrate(){const prior=await get("meta","legacy-v1");if(prior?.done&&!prior.failures?.length)return;let cards=[],failures=[];try{cards=JSON.parse(localStorage.getItem(LEGACY_KEY)||"[]");if(!Array.isArray(cards))throw new Error("invalid-json-shape");}catch(e){failures.push({dateKey:null,reason:"legacy-json:"+(e.message||"invalid")});cards=[];}const newest=new Map();cards.filter(c=>!c.sample&&!String(c.id||"").startsWith("sample-")).forEach(c=>{const k=c.dateKey||c.date;if(k&&(!newest.has(k)||(newest.get(k).createdAt||0)<(c.createdAt||0)))newest.set(k,c);});for(const [k,c] of newest){try{const existing=await get("entries",k);const kind=c.kind==="blank"?"blank":"photo",raw=c.photo||c.photoData||c.image;const retryPhoto=kind==="photo"&&existing?.legacy&&!existing.photoBlob;if(existing&&!retryPhoto)continue;let blob=existing?.photoBlob||null;if(kind==="photo"){if(raw){try{blob=dataUrlBlob(raw);}catch(e){failures.push({dateKey:k,reason:"photo:"+(e.message||"invalid")});}}else{failures.push({dateKey:k,reason:"photo:missing"});}}await put("entries",{dateKey:k,kind,answer:c.answer||existing?.answer||"",title:c.prompt||existing?.title||"",instruction:c.prompt||existing?.instruction||"",createdAt:existing?.createdAt||c.createdAt||Date.now(),updatedAt:Date.now(),legacy:true,analysisEligible:false,tags:[],photoBlob:blob});}catch(e){failures.push({dateKey:k,reason:"entry:"+(e.message||"failed")});}}await put("meta",{key:"legacy-v1",done:failures.length===0,failures,updatedAt:Date.now()});}
+  async function migrateV1UserData() {
+    const marker = await get("meta", "user-storage-v2");
+    if (marker?.done) return;
+    const existingEntries = await rawAll("entries");
+    const existingDrafts = await rawAll("drafts");
+    for (const entry of existingEntries) await rawPut("userEntries", { ...entry, id: `demo-user-1:${entry.dateKey}`, userId: "demo-user-1" });
+    for (const draft of existingDrafts) await rawPut("userDrafts", { ...draft, id: `demo-user-1:${draft.dateKey}`, userId: "demo-user-1" });
+    await put("meta", { key: "user-storage-v2", done: true, updatedAt: Date.now() });
+  }
+  function showLogin() { $("app-shell").hidden = true; $("login-screen").hidden = false; $("login-form")?.reset(); $("login-error").hidden = true; $("login-id")?.focus(); }
+  function renderUser() { $("current-user-name").textContent = state.user.name; $("current-user-initial").textContent = state.user.name.slice(0, 1); }
+  const PRESENTATION_STEPS = [
+    { screen: "today", title: "気分から、今日の寄り道へ。", copy: "まず、いま得たい気分を選びます。評価や連続記録ではなく、その日の自分から始めます。" },
+    { screen: "collection", title: "一枚が、視点の記憶になる。", copy: "写真と短い言葉は、10日分の採集帳として残ります。AI接続がない場合も固定の一問で体験を完走できます。" },
+    { screen: "feed", title: "同じ気分の景色が届く。", copy: "いいね数やフォロワー数ではなく、いまの気分に近い人の景色を先に並べます。" },
+    { screen: "collection", title: "日記でも、SNSでもない。", copy: "競争や義務感を作らず、自分と周囲の見え方を少しずつ変える体験です。" }
+  ];
+  async function showPresentationStep(index) { state.presentationIndex = index; const item = PRESENTATION_STEPS[index]; if (!item) { $("presentation-guide").hidden = true; state.presentationIndex = -1; return; } if (item.screen === "collection") await renderCollection(); if (item.screen === "feed") await renderFeed(); if (item.screen === "today") await renderToday(); navigate(item.screen); $("presentation-guide").hidden = false; $("presentation-step").textContent = `${index + 1} / ${PRESENTATION_STEPS.length}`; $("presentation-title").textContent = item.title; $("presentation-copy").textContent = item.copy; $("presentation-next").textContent = index === PRESENTATION_STEPS.length - 1 ? "完了" : "次へ"; }
+  async function startUser(user) {
+    state.user = user;
+    state.dateKey = localDateKey();
+    state.draft = null;
+    state.pending = null;
+    state.stale = null;
+    $$("input[name=\"mood\"]").forEach((input) => { input.checked = false; });
+    localStorage.setItem(SESSION_KEY, user.id);
+    await migrateV1UserData();
+    await migrate();
+    await seedDemoEntries();
+    renderUser();
+    $("login-screen").hidden = true;
+    $("app-shell").hidden = false;
+    await restore();
+    navigate("today");
+  }
+  function bindLogin() {
+    $("login-form")?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const id = $("login-id").value.trim();
+      const password = $("login-password").value;
+      const user = TEST_USERS.find((candidate) => candidate.id === id && candidate.password === password);
+      if (!user) { const error = $("login-error"); error.textContent = "テストIDまたはパスワードを確認してください。"; error.hidden = false; return; }
+      await startUser(user);
+    });
+    $("start-presentation")?.addEventListener("click", async () => { await resetDemoEntries(); await startUser(TEST_USERS.find((user) => user.id === "demo-user-1")); await showPresentationStep(0); });
+    $("logout-button")?.addEventListener("click", () => { localStorage.removeItem(SESSION_KEY); state.user = null; showLogin(); });
+    $("presentation-button")?.addEventListener("click", () => showPresentationStep(0));
+    $("presentation-next")?.addEventListener("click", () => showPresentationStep(state.presentationIndex + 1));
+    $("presentation-close")?.addEventListener("click", () => { $("presentation-guide").hidden = true; state.presentationIndex = -1; });
+  }
   async function restore(){state.dateKey=localDateKey();const drafts=await all("drafts");for(const d of drafts){if(d.dateKey!==state.dateKey){if(d.photoBlob){$("stale-draft-banner").hidden=false;state.stale=d;}else await del("drafts",d.dateKey);}}state.draft=await get("drafts",state.dateKey);if(state.draft){if(state.draft.status==="active")renderActive();else if(state.draft.status==="proposal")renderProposal();else if(["record","captured"].includes(state.draft.status)){renderRecord();navigate("record");}else if(state.draft.status==="preview"){state.pending=makeEntry(state.draft.previewKind||"photo");renderCard();navigate("card");}}await renderToday();}
   function bind() {
     $("mood-form")?.addEventListener("change", () => chooseProposal(0));
@@ -310,8 +398,8 @@
     });
     $("reset-data")?.addEventListener("click", async () => {
       if (!await confirmDialog("採集帳をすべてリセットしますか？", "この端末に保存した採集記録と下書きを削除します。")) return;
-      await tx("entries", "readwrite", (store) => store.clear());
-      await tx("drafts", "readwrite", (store) => store.clear());
+      await Promise.all((await all("entries")).map((entry) => del("entries", entry.dateKey)));
+      await Promise.all((await all("drafts")).map((draft) => del("drafts", draft.dateKey)));
       state.draft = null;
       state.pending = null;
       await renderCollection();
@@ -321,10 +409,11 @@
       event.preventDefault();
       const name = item.dataset.screenLink;
       if (name === "collection") await renderCollection();
+      if (name === "feed") await renderFeed();
       if (name === "today") await renderToday();
       navigate(name);
     }));
   }
 
-  (async()=>{try{db=await openDB();await migrate();bind();await restore();}catch(e){console.error(e);toast("このブラウザでは保存を初期化できませんでした。");}})();
+  (async()=>{try{db=await openDB();bind();bindLogin();const savedId=localStorage.getItem(SESSION_KEY), user=TEST_USERS.find((candidate)=>candidate.id===savedId);if(user)await startUser(user);else showLogin();}catch(e){console.error(e);toast("このブラウザでは保存を初期化できませんでした。");}})();
 })();
