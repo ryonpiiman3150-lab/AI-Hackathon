@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#f4f1ea" />
   <meta name="description" content="いつもの一日に、小さな寄り道を。日常採集のローカルモック。" />
   <title>日常採集｜小さな寄り道</title>
-  <link rel="stylesheet" href="styles.css?v=14" />
+  <link rel="stylesheet" href="styles.css?v=16" />
 </head>
 <body>
   <section id="login-screen" class="login-screen" aria-labelledby="login-title">
@@ -25,7 +25,7 @@
   <div id="app-shell" class="app-shell" hidden>
     <header class="topbar">
       <a class="brand" href="#today" data-screen-link="today" aria-label="日常採集・今日へ"><span class="brand-mark" aria-hidden="true">日</span>日常<span class="brand-accent">採集</span></a>
-      <div class="account-tools"><span class="privacy-note"><span aria-hidden="true">●</span> この端末だけに保存</span><button id="presentation-button" class="text-button" type="button">プレゼン</button><button id="logout-button" class="user-button" type="button" aria-label="ログアウト"><span id="current-user-initial" aria-hidden="true"></span><span id="current-user-name"></span></button></div>
+      <div class="account-tools"><span class="privacy-note"><span aria-hidden="true">●</span> この端末だけに保存</span><button id="presentation-button" class="text-button" type="button">プレゼン</button><div class="user-menu"><button id="user-menu-button" class="user-button" type="button" aria-expanded="false" aria-controls="user-menu"><span id="current-user-initial" aria-hidden="true"></span><span id="current-user-name"></span></button><div id="user-menu" class="user-menu-popover" hidden><button id="open-profile" type="button">わたしの設定</button><button id="logout-button" type="button">ログアウト</button></div></div></div>
     </header>
     <main>
       <section class="screen is-active" id="screen-today" data-screen="today" aria-labelledby="today-title">
@@ -83,13 +83,17 @@
         <div class="screen-heading"><h1 id="feed-title" tabindex="-1">みんなの<br><em>採集。</em></h1><p id="feed-lead" class="lead"></p></div>
         <div id="feed-list" class="feed-list"></div>
       </div></section>
+      <section class="screen" id="screen-profile" data-screen="profile" aria-labelledby="profile-title" hidden><div class="screen-inner">
+        <button id="back-from-profile" class="back-button" type="button">← 今日へ戻る</button><div class="screen-heading"><p class="kicker">ABOUT YOU</p><h1 id="profile-title" tabindex="-1">あなたのことを、<br><em>少しだけ。</em></h1><p class="lead">すべて非公開です。設定すると、あなたの環境に沿った一枚を提案できます。</p></div>
+        <form id="profile-form" class="profile-form"><label for="profile-name">呼ばれたい名前 <span>任意</span><input id="profile-name" name="displayName" maxlength="24" autocomplete="nickname" placeholder="たとえば、デモユーザー1"></label><fieldset><legend>年代 <span>任意</span></legend><div class="choice-options"><label><input type="radio" name="ageRange" value="10代以下"><span>10代以下</span></label><label><input type="radio" name="ageRange" value="20代"><span>20代</span></label><label><input type="radio" name="ageRange" value="30代"><span>30代</span></label><label><input type="radio" name="ageRange" value="40代"><span>40代</span></label><label><input type="radio" name="ageRange" value="50代以上"><span>50代以上</span></label></div></fieldset><fieldset><legend>いまの立場 <span>任意</span></legend><div class="choice-options three"><label><input type="radio" name="role" value="学生"><span>学生</span></label><label><input type="radio" name="role" value="社会人"><span>社会人</span></label><label><input type="radio" name="role" value="その他"><span>その他</span></label></div></fieldset><fieldset><legend>いまの生活の状態 <span>任意</span></legend><div class="choice-options"><label><input type="radio" name="lifeState" value="忙しい"><span>忙しい</span></label><label><input type="radio" name="lifeState" value="少し余白がある"><span>少し余白がある</span></label><label><input type="radio" name="lifeState" value="変化の途中"><span>変化の途中</span></label><label><input type="radio" name="lifeState" value="整えたい"><span>整えたい</span></label></div></fieldset><label for="profile-mbti">自分の傾向 <span>知っていれば任意</span><select id="profile-mbti" name="mbti"><option value="">選ばない</option><option>INTJ</option><option>INTP</option><option>ENTJ</option><option>ENTP</option><option>INFJ</option><option>INFP</option><option>ENFJ</option><option>ENFP</option><option>ISTJ</option><option>ISFJ</option><option>ESTJ</option><option>ESFJ</option><option>ISTP</option><option>ISFP</option><option>ESTP</option><option>ESFP</option></select></label><p class="profile-privacy">入力内容はこの端末にのみ保存され、みんなには表示されません。AIを使うときも、送信前に内容を確認できるようにします。</p><button class="button button-primary full-button" type="submit">設定を保存する</button><button id="skip-profile" class="text-button profile-skip" type="button">あとで設定する</button></form>
+      </div></section>
     </main>
     <nav class="bottom-nav" aria-label="メインナビゲーション"><button class="nav-item is-active" type="button" data-screen-link="today" aria-current="page"><span aria-hidden="true">○</span>今日</button><button class="nav-item" type="button" data-screen-link="feed"><span aria-hidden="true">●</span>みんな</button><button class="nav-item" type="button" data-screen-link="collection"><span aria-hidden="true">▱</span>採集帳</button></nav>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <aside id="presentation-guide" class="presentation-guide" hidden aria-live="polite"><p id="presentation-step"></p><h2 id="presentation-title"></h2><p id="presentation-copy"></p><div><button id="presentation-next" class="button button-primary" type="button">次へ</button><button id="presentation-close" class="text-button" type="button">終了</button></div></aside>
     <dialog id="confirm-dialog" aria-labelledby="confirm-title"><h2 id="confirm-title">確認</h2><p id="confirm-body"></p><div class="dialog-actions"><button id="confirm-cancel" class="button button-quiet" type="button">やめる</button><button id="confirm-accept" class="button button-primary" type="button">続ける</button></div></dialog>
   </div>
-  <script src="mission-data.js?v=14"></script>
-  <script src="app.js?v=14"></script>
+  <script src="mission-data.js?v=16"></script>
+  <script src="app.js?v=16"></script>
 </body>
 </html>

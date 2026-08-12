@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const DB_NAME = "nichijo-shusai", DB_VERSION = 2, LEGACY_KEY = "nichijo-shusai-cards-v1", SESSION_KEY = "nichijo-shusai-session-v1";
+  const DB_NAME = "nichijo-shusai", LEGACY_KEY = "nichijo-shusai-cards-v1", SESSION_KEY = "nichijo-shusai-session-v1";
   const TEST_USERS = [
     { id: "demo-user-2", password: "demo-user-2", name: "デモユーザー2" },
     { id: "demo-user-1", password: "demo-user-1", name: "デモユーザー1" }
@@ -28,14 +28,16 @@
   const $ = (id) => document.getElementById(id);
   const $$ = (s) => [...document.querySelectorAll(s)];
   const data = window.NICHIJO_DATA || { moods: [], missions: [], reportTemplates: {} };
-  const state = { screen: "today", dateKey: localDateKey(), draft: null, pending: null, objectUrl: null, collectionUrls: [], feedUrls: [], saving: false, finishingStale: false, user: null, presentationIndex: -1 };
+  const state = { screen: "today", dateKey: localDateKey(), draft: null, pending: null, objectUrl: null, collectionUrls: [], feedUrls: [], saving: false, finishingStale: false, user: null, profile: null, presentationIndex: -1 };
   let db;
 
   function localDateKey(d = new Date()) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
   function labelDate(k = localDateKey()) { const [y,m,d]=k.split("-").map(Number); return new Intl.DateTimeFormat("ja-JP",{year:"numeric",month:"long",day:"numeric",weekday:"short"}).format(new Date(y,m-1,d)); }
   const esc = (v="") => String(v).replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]));
   function toast(message) { const el=$("toast"); if (!el) return; el.textContent=message; el.classList.add("is-visible"); clearTimeout(toast.t); toast.t=setTimeout(()=>el.classList.remove("is-visible"),3000); }
-  function openDB() { return new Promise((resolve,reject)=>{ const r=indexedDB.open(DB_NAME,DB_VERSION); r.onupgradeneeded=()=>{const d=r.result; if(!d.objectStoreNames.contains("entries"))d.createObjectStore("entries",{keyPath:"dateKey"}); if(!d.objectStoreNames.contains("drafts"))d.createObjectStore("drafts",{keyPath:"dateKey"}); if(!d.objectStoreNames.contains("meta"))d.createObjectStore("meta",{keyPath:"key"}); if(!d.objectStoreNames.contains("userEntries"))d.createObjectStore("userEntries",{keyPath:"id"}); if(!d.objectStoreNames.contains("userDrafts"))d.createObjectStore("userDrafts",{keyPath:"id"});}; r.onsuccess=()=>resolve(r.result); r.onerror=()=>reject(r.error); }); }
+  // 既存DBのバージョンを指定しない。旧タブを開いたままでもスキーマ更新待ちにせず起動する。
+  // 新規DBでは onupgradeneeded で必要なストアをまとめて作成する。
+  function openDB() { return new Promise((resolve,reject)=>{ const r=indexedDB.open(DB_NAME); r.onupgradeneeded=()=>{const d=r.result; if(!d.objectStoreNames.contains("entries"))d.createObjectStore("entries",{keyPath:"dateKey"}); if(!d.objectStoreNames.contains("drafts"))d.createObjectStore("drafts",{keyPath:"dateKey"}); if(!d.objectStoreNames.contains("meta"))d.createObjectStore("meta",{keyPath:"key"}); if(!d.objectStoreNames.contains("userEntries"))d.createObjectStore("userEntries",{keyPath:"id"}); if(!d.objectStoreNames.contains("userDrafts"))d.createObjectStore("userDrafts",{keyPath:"id"});}; r.onsuccess=()=>{const database=r.result;database.onversionchange=()=>database.close();resolve(database);}; r.onerror=()=>reject(r.error); r.onblocked=()=>reject(new Error("database-upgrade-blocked")); }); }
   function tx(store, mode, fn) { return new Promise((resolve,reject)=>{ const t=db.transaction(store,mode), s=t.objectStore(store); let result; try { result=fn(s); } catch(e){reject(e);return;} t.oncomplete=()=>resolve(result); t.onerror=()=>reject(t.error); }); }
   const rawGet = (s,k) => new Promise((resolve,reject)=>{const r=db.transaction(s).objectStore(s).get(k);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
   const rawAll = (s) => new Promise((resolve,reject)=>{const r=db.transaction(s).objectStore(s).getAll();r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error);});
@@ -229,7 +231,11 @@
     await put("meta", { key: "user-storage-v2", done: true, updatedAt: Date.now() });
   }
   function showLogin() { $("app-shell").hidden = true; $("login-screen").hidden = false; $("login-form")?.reset(); $("login-error").hidden = true; $("login-id")?.focus(); }
-  function renderUser() { $("current-user-name").textContent = state.user.name; $("current-user-initial").textContent = state.user.name.slice(0, 1); }
+  function renderUser() { const name = state.profile?.displayName || state.user.name; $("current-user-name").textContent = name; $("current-user-initial").textContent = name.slice(0, 1); }
+  function toggleUserMenu(force) { const menu = $("user-menu"), button = $("user-menu-button"), visible = force ?? menu.hidden; menu.hidden = !visible; button.setAttribute("aria-expanded", String(visible)); }
+  function renderProfile() { const profile = state.profile || {}; $("profile-name").value = profile.displayName || ""; ["ageRange", "role", "lifeState"].forEach((field) => { const input = $("profile-form").querySelector(`input[name="${field}"][value="${CSS.escape(profile[field] || "")}"]`); if (input) input.checked = true; }); $("profile-mbti").value = profile.mbti || ""; }
+  function openProfile() { toggleUserMenu(false); renderProfile(); navigate("profile"); }
+  async function saveProfile({ skipped = false } = {}) { const form = $("profile-form"), value = (name) => new FormData(form).get(name) || ""; state.profile = { key: `profile:${state.user.id}`, userId: state.user.id, displayName: skipped ? "" : value("displayName").trim(), ageRange: skipped ? "" : value("ageRange"), role: skipped ? "" : value("role"), lifeState: skipped ? "" : value("lifeState"), mbti: skipped ? "" : value("mbti"), visibility: "private", onboardingSeen: true, updatedAt: Date.now() }; await rawPut("meta", state.profile); renderUser(); toast(skipped ? "プロフィールは、いつでも設定できます。" : "設定を保存しました。"); await renderToday(); navigate("today"); }
   const PRESENTATION_STEPS = [
     { screen: "today", title: "気分から、今日の寄り道へ。", copy: "まず、いま得たい気分を選びます。評価や連続記録ではなく、その日の自分から始めます。" },
     { screen: "collection", title: "一枚が、視点の記憶になる。", copy: "写真と短い言葉は、10日分の採集帳として残ります。AI接続がない場合も固定の一問で体験を完走できます。" },
@@ -248,11 +254,13 @@
     await migrateV1UserData();
     await migrate();
     await seedDemoEntries();
+    state.profile = await rawGet("meta", `profile:${user.id}`);
     renderUser();
     $("login-screen").hidden = true;
     $("app-shell").hidden = false;
     await restore();
     navigate("today");
+    if (!state.profile?.onboardingSeen) openProfile();
   }
   function bindLogin() {
     $("login-form")?.addEventListener("submit", async (event) => {
@@ -264,7 +272,12 @@
       await startUser(user);
     });
     $("start-presentation")?.addEventListener("click", async () => { await resetDemoEntries(); await startUser(TEST_USERS.find((user) => user.id === "demo-user-1")); await showPresentationStep(0); });
-    $("logout-button")?.addEventListener("click", () => { localStorage.removeItem(SESSION_KEY); state.user = null; showLogin(); });
+    $("user-menu-button")?.addEventListener("click", () => toggleUserMenu());
+    $("open-profile")?.addEventListener("click", openProfile);
+    $("logout-button")?.addEventListener("click", () => { toggleUserMenu(false); localStorage.removeItem(SESSION_KEY); state.user = null; state.profile = null; showLogin(); });
+    $("profile-form")?.addEventListener("submit", async (event) => { event.preventDefault(); await saveProfile(); });
+    $("skip-profile")?.addEventListener("click", () => saveProfile({ skipped: true }));
+    $("back-from-profile")?.addEventListener("click", async () => { await renderToday(); navigate("today"); });
     $("presentation-button")?.addEventListener("click", () => showPresentationStep(0));
     $("presentation-next")?.addEventListener("click", () => showPresentationStep(state.presentationIndex + 1));
     $("presentation-close")?.addEventListener("click", () => { $("presentation-guide").hidden = true; state.presentationIndex = -1; });
