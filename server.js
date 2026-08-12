@@ -49,17 +49,41 @@ function extractJson(content) {
   return { comment, question };
 }
 
-async function reflect(payload) {
-  const imageData = string(payload.imageData, MAX_BODY_BYTES);
-  if (!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(imageData)) throw new Error("invalid-image");
-  const apiKey = process.env.ORCAROUTER_API_KEY;
-  if (!apiKey) { const error = new Error("not-configured"); error.status = 503; throw error; }
+function extractMission(content) {
+  const text = typeof content === "string" ? content : "";
+  const candidate = text.match(/\{[\s\S]*\}/)?.[0] || text;
+  const parsed = JSON.parse(candidate);
+  const title = string(parsed.title, 40);
+  const instruction = string(parsed.instruction, 140);
+  const indoorInstruction = string(parsed.indoorInstruction, 140);
+  const question = string(parsed.question, 120);
+  if (!title || !instruction || !indoorInstruction || !question) throw new Error("invalid-model-response");
+  return { title, instruction, indoorInstruction, question };
+}
 
-  const mood = string(payload.mood, 40);
+function contextFrom(payload) {
   const profile = payload.profile && typeof payload.profile === "object" ? {
     ageRange: string(payload.profile.ageRange, 20), role: string(payload.profile.role, 20), lifeState: string(payload.profile.lifeState, 30), mbti: string(payload.profile.mbti, 8)
   } : {};
   const recent = Array.isArray(payload.recent) ? payload.recent.slice(0, 7).map((entry) => ({ title: string(entry?.title, 60), answer: string(entry?.answer, 140), tags: Array.isArray(entry?.tags) ? entry.tags.map((tag) => string(tag, 24)).filter(Boolean).slice(0, 5) : [] })) : [];
+  return { mood: string(payload.mood, 40), profile, recent };
+}
+
+async function chat(prompt, imageData, maxTokens = 180) {
+  const apiKey = process.env.ORCAROUTER_API_KEY;
+  if (!apiKey) { const error = new Error("not-configured"); error.status = 503; throw error; }
+  const endpoint = `${(process.env.ORCAROUTER_BASE_URL || "https://api.orcarouter.ai/v1").replace(/\/$/, "")}/chat/completions`;
+  const content = [{ type: "text", text: prompt }];
+  if (imageData) content.push({ type: "image_url", image_url: { url: imageData } });
+  const upstream = await fetch(endpoint, { method: "POST", headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model: process.env.ORCAROUTER_MODEL || "openai/gpt-4o-mini", temperature: 0.7, max_tokens: maxTokens, messages: [{ role: "user", content }] }) });
+  if (!upstream.ok) { const error = new Error("upstream-failed"); error.status = 502; throw error; }
+  return { content: (await upstream.json())?.choices?.[0]?.message?.content, model: process.env.ORCAROUTER_MODEL || "openai/gpt-4o-mini" };
+}
+
+async function reflect(payload) {
+  const imageData = string(payload.imageData, MAX_BODY_BYTES);
+  if (!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(imageData)) throw new Error("invalid-image");
+  const { mood, profile, recent } = contextFrom(payload);
   const prompt = [
     "あなたは『日常採集』の穏やかな伴走者です。添付画像について、見えない事実・人物属性・場所・感情を断定しません。",
     "日本語で、写真から読み取れる色、光、形、配置、質感などを一つだけ肯定的にコメントし、その人自身の発見を促す質問を一つ返します。",
@@ -69,15 +93,23 @@ async function reflect(payload) {
     `最近の採集（最大7件）: ${JSON.stringify(recent)}`,
     '必ず次のJSONだけを返してください: {"comment":"...","question":"..."}'
   ].join("\n");
-  const endpoint = `${(process.env.ORCAROUTER_BASE_URL || "https://api.orcarouter.ai/v1").replace(/\/$/, "")}/chat/completions`;
-  const upstream = await fetch(endpoint, {
-    method: "POST",
-    headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: process.env.ORCAROUTER_MODEL || "openai/gpt-4o-mini", temperature: 0.7, max_tokens: 180, messages: [{ role: "user", content: [{ type: "text", text: prompt }, { type: "image_url", image_url: { url: imageData } }] }] })
-  });
-  if (!upstream.ok) { const error = new Error("upstream-failed"); error.status = 502; throw error; }
-  const result = await upstream.json();
-  return { ...extractJson(result?.choices?.[0]?.message?.content), model: process.env.ORCAROUTER_MODEL || "openai/gpt-4o-mini" };
+  const result = await chat(prompt, imageData);
+  return { ...extractJson(result.content), model: result.model };
+}
+
+async function mission(payload) {
+  const { mood, profile, recent } = contextFrom(payload);
+  const prompt = [
+    "あなたは『日常採集』の穏やかな伴走者です。利用者の気分と過去の採集に合わせ、5〜15分でできる小さな寄り道を一つ提案します。",
+    "プロフィールは距離感を調整する参考にだけ使い、個人情報や属性を回答内で繰り返しません。安全で、場所や人物を特定しない、評価や達成を求めない提案にしてください。",
+    "屋外版と室内版は同じ視点を保ちます。質問は写真を撮った後に自分の発見を言葉にするための、断定しない一問です。",
+    `いま得たい気分: ${mood || "未選択"}`,
+    `非公開プロフィール: ${JSON.stringify(profile)}`,
+    `最近の採集（最大7件）: ${JSON.stringify(recent)}`,
+    '必ず次のJSONだけを返してください: {"title":"...","instruction":"...","indoorInstruction":"...","question":"..."}'
+  ].join("\n");
+  const result = await chat(prompt, null, 260);
+  return { ...extractMission(result.content), model: result.model };
 }
 
 loadLocalEnv();
@@ -86,6 +118,10 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "POST" && req.url === "/api/reflection") {
     try { return sendJson(res, 200, await reflect(JSON.parse(await readBody(req)))); }
     catch (error) { return sendJson(res, error.status || 400, { error: error.message === "not-configured" ? "AI接続はまだ設定されていません。" : "AIから一問を受け取れませんでした。" }); }
+  }
+  if (req.method === "POST" && req.url === "/api/mission") {
+    try { return sendJson(res, 200, await mission(JSON.parse(await readBody(req)))); }
+    catch (error) { return sendJson(res, error.status || 400, { error: error.message === "not-configured" ? "AI接続はまだ設定されていません。" : "AIから今日のお題を受け取れませんでした。" }); }
   }
   if (req.method !== "GET" && req.method !== "HEAD") return sendJson(res, 405, { error: "method-not-allowed" });
   const requestPath = decodeURIComponent((req.url || "/").split("?")[0]);

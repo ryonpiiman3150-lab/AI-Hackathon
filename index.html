@@ -12,7 +12,7 @@
   <section id="login-screen" class="login-screen" aria-labelledby="login-title">
     <div class="login-panel">
       <a class="brand login-brand" href="#login" aria-label="日常採集"><span class="brand-mark" aria-hidden="true">日</span>日常<span class="brand-accent">採集</span></a>
-      <div class="login-heading"><h1 id="login-title">今日の景色を、<br><em>持ち帰ろう。</em></h1><p>これはチーム用のローカルデモです。記録はこの端末だけに保存され、AIに見てもらう操作をした時だけ外部へ送信されます。</p></div>
+      <div class="login-heading"><h1 id="login-title">今日の景色を、<br><em>持ち帰ろう。</em></h1><p>これはチーム用のローカルデモです。記録はこの端末だけに保存され、気分や写真を選んだ時だけ、AIのお題・質問生成のため外部へ送信されます。</p></div>
       <form id="login-form" class="login-form">
         <label for="login-id">テストID<input id="login-id" name="id" autocomplete="username" required></label>
         <label for="login-password">パスワード<input id="login-password" name="password" type="password" autocomplete="current-password" required></label>
@@ -48,7 +48,7 @@
           </section>
 
           <section id="proposal-step" class="step-panel" hidden aria-labelledby="proposal-heading">
-            <p class="kicker">TODAY'S DETOUR <span class="mock-label">モック</span></p><h2 id="proposal-heading" tabindex="-1">今日の寄り道</h2>
+            <p class="kicker">TODAY'S DETOUR <span id="proposal-source" class="mock-label">固定</span></p><h2 id="proposal-heading" tabindex="-1">今日の寄り道</h2><p id="mission-ai-status" class="ai-status" aria-live="polite" hidden></p>
             <article class="mission-card" aria-live="polite"><div class="mission-meta"><span id="proposal-mood"></span><span id="mission-duration"></span></div><h3 id="mission-title"></h3><p id="mission-instruction"></p><p class="mission-mode" id="mission-mode"></p></article>
             <div class="proposal-actions"><button id="start-mission" class="button button-primary" type="button">この寄り道をはじめる <span aria-hidden="true">→</span></button><button id="toggle-indoor" class="button button-quiet" type="button">室内版を見る</button><button id="choose-new-mission" class="text-button" type="button">別の提案にする</button></div>
             <button id="save-blank" class="blank-link" type="button">今日は余白にする</button>
@@ -65,7 +65,7 @@
       <section class="screen" id="screen-record" data-screen="record" aria-labelledby="record-title" hidden><div class="screen-inner">
         <button id="back-to-active" class="back-button" type="button">← 採集中に戻る</button><div class="screen-heading"><p class="kicker">ONE PHOTO</p><h1 id="record-title" tabindex="-1">一枚を<br><em>持ち帰る。</em></h1><p class="lead">この一枚から、今日の発見を残します。</p></div>
         <div class="photo-stage"><img id="photo-preview" alt="選んだ写真のプレビュー" hidden><div class="photo-placeholder">写真を準備しています</div></div>
-        <section class="ai-invite" aria-labelledby="ai-invite-title"><p id="ai-invite-title">AIに、この一枚を見てもらう</p><p>写真・いまの気分・非公開の設定・最近の採集（最大7件）をOrcaRouterへ送ります。保存や公開はしません。</p><button id="ask-ai" class="small-button" type="button">AIに一問をつくってもらう</button><p id="ai-status" class="ai-status" aria-live="polite" hidden></p></section>
+        <section class="ai-invite" aria-labelledby="ai-invite-title"><p id="ai-invite-title">AIが、この一枚を見ています</p><p>写真を選ぶと、写真・いまの気分・非公開の設定・最近の採集（最大7件）をOrcaRouterへ自動送信し、コメントと一問を作ります。保存や公開はしません。</p><p id="ai-status" class="ai-status" aria-live="polite" hidden></p></section>
         <article class="question-card"><p class="question-label">発見を残す一問 <span id="question-source" class="mock-label">固定</span></p><p id="ai-comment" class="ai-comment" hidden></p><p class="question-text" id="question-text"></p><label for="answer-input">あなたの一言 <span>任意</span></label><textarea id="answer-input" rows="4" maxlength="120" placeholder="短くても、空欄でも大丈夫です"></textarea><div class="answer-footer"><span id="answer-count">0 / 120</span><button id="skip-answer" class="text-button" type="button">答えずに進む</button></div></article>
         <button id="make-card" class="button button-primary full-button" type="button">採集記録を見る <span aria-hidden="true">→</span></button>
       </div></section>
@@ -94,7 +94,7 @@
     <aside id="presentation-guide" class="presentation-guide" hidden aria-live="polite"><p id="presentation-step"></p><h2 id="presentation-title"></h2><p id="presentation-copy"></p><div><button id="presentation-next" class="button button-primary" type="button">次へ</button><button id="presentation-close" class="text-button" type="button">終了</button></div></aside>
     <dialog id="confirm-dialog" aria-labelledby="confirm-title"><h2 id="confirm-title">確認</h2><p id="confirm-body"></p><div class="dialog-actions"><button id="confirm-cancel" class="button button-quiet" type="button">やめる</button><button id="confirm-accept" class="button button-primary" type="button">続ける</button></div></dialog>
   </div>
-  <script src="mission-data.js?v=18"></script>
-  <script src="app.js?v=18"></script>
+  <script src="mission-data.js?v=19"></script>
+  <script src="app.js?v=19"></script>
 </body>
 </html>
