@@ -6,13 +6,13 @@
   <meta name="theme-color" content="#f4f1ea" />
   <meta name="description" content="いつもの一日に、小さな寄り道を。日常採集のローカルモック。" />
   <title>日常採集｜小さな寄り道</title>
-  <link rel="stylesheet" href="styles.css?v=16" />
+  <link rel="stylesheet" href="styles.css?v=17" />
 </head>
 <body>
   <section id="login-screen" class="login-screen" aria-labelledby="login-title">
     <div class="login-panel">
       <a class="brand login-brand" href="#login" aria-label="日常採集"><span class="brand-mark" aria-hidden="true">日</span>日常<span class="brand-accent">採集</span></a>
-      <div class="login-heading"><h1 id="login-title">今日の景色を、<br><em>持ち帰ろう。</em></h1><p>これはチーム用のローカルデモです。記録はこの端末だけに保存され、外部へ送信されません。</p></div>
+      <div class="login-heading"><h1 id="login-title">今日の景色を、<br><em>持ち帰ろう。</em></h1><p>これはチーム用のローカルデモです。記録はこの端末だけに保存され、AIに見てもらう操作をした時だけ外部へ送信されます。</p></div>
       <form id="login-form" class="login-form">
         <label for="login-id">テストID<input id="login-id" name="id" autocomplete="username" required></label>
         <label for="login-password">パスワード<input id="login-password" name="password" type="password" autocomplete="current-password" required></label>
@@ -65,13 +65,14 @@
       <section class="screen" id="screen-record" data-screen="record" aria-labelledby="record-title" hidden><div class="screen-inner">
         <button id="back-to-active" class="back-button" type="button">← 採集中に戻る</button><div class="screen-heading"><p class="kicker">ONE PHOTO</p><h1 id="record-title" tabindex="-1">一枚を<br><em>持ち帰る。</em></h1><p class="lead">この一枚から、今日の発見を残します。</p></div>
         <div class="photo-stage"><img id="photo-preview" alt="選んだ写真のプレビュー" hidden><div class="photo-placeholder">写真を準備しています</div></div>
-        <article class="question-card"><p class="question-label">発見を残す一問 <span class="mock-label">モック</span></p><p class="question-text" id="question-text"></p><label for="answer-input">あなたの一言 <span>任意</span></label><textarea id="answer-input" rows="4" maxlength="120" placeholder="短くても、空欄でも大丈夫です"></textarea><div class="answer-footer"><span id="answer-count">0 / 120</span><button id="skip-answer" class="text-button" type="button">答えずに進む</button></div></article>
+        <section class="ai-invite" aria-labelledby="ai-invite-title"><p id="ai-invite-title">AIに、この一枚を見てもらう</p><p>写真・いまの気分・非公開の設定・最近の採集（最大7件）をOrcaRouterへ送ります。保存や公開はしません。</p><button id="ask-ai" class="small-button" type="button">AIに一問をつくってもらう</button><p id="ai-status" class="ai-status" aria-live="polite" hidden></p></section>
+        <article class="question-card"><p class="question-label">発見を残す一問 <span id="question-source" class="mock-label">固定</span></p><p id="ai-comment" class="ai-comment" hidden></p><p class="question-text" id="question-text"></p><label for="answer-input">あなたの一言 <span>任意</span></label><textarea id="answer-input" rows="4" maxlength="120" placeholder="短くても、空欄でも大丈夫です"></textarea><div class="answer-footer"><span id="answer-count">0 / 120</span><button id="skip-answer" class="text-button" type="button">答えずに進む</button></div></article>
         <button id="make-card" class="button button-primary full-button" type="button">採集記録を見る <span aria-hidden="true">→</span></button>
       </div></section>
 
       <section class="screen" id="screen-card" data-screen="card" aria-labelledby="card-title" hidden><div class="screen-inner">
         <button id="back-to-record" class="back-button" type="button">← 発見を残す一問へ</button><div class="screen-heading compact-heading"><p class="kicker">YOUR COLLECTION</p><h1 id="card-title" tabindex="-1">採集記録</h1></div>
-        <article id="daily-card" class="daily-card" aria-live="polite"></article><div class="card-actions"><button id="save-card" class="button button-primary full-button" type="button">採集帳に保存する <span aria-hidden="true">→</span></button></div><p class="ai-disclaimer">お題と記録から作ったモックです。写真そのものは解析していません。</p>
+        <article id="daily-card" class="daily-card" aria-live="polite"></article><div class="card-actions"><button id="save-card" class="button button-primary full-button" type="button">採集帳に保存する <span aria-hidden="true">→</span></button></div><p id="card-ai-disclaimer" class="ai-disclaimer">お題と記録から作ったモックです。写真そのものは解析していません。</p>
       </div></section>
 
       <section class="screen" id="screen-collection" data-screen="collection" aria-labelledby="collection-title" hidden><div class="screen-inner">
@@ -93,7 +94,7 @@
     <aside id="presentation-guide" class="presentation-guide" hidden aria-live="polite"><p id="presentation-step"></p><h2 id="presentation-title"></h2><p id="presentation-copy"></p><div><button id="presentation-next" class="button button-primary" type="button">次へ</button><button id="presentation-close" class="text-button" type="button">終了</button></div></aside>
     <dialog id="confirm-dialog" aria-labelledby="confirm-title"><h2 id="confirm-title">確認</h2><p id="confirm-body"></p><div class="dialog-actions"><button id="confirm-cancel" class="button button-quiet" type="button">やめる</button><button id="confirm-accept" class="button button-primary" type="button">続ける</button></div></dialog>
   </div>
-  <script src="mission-data.js?v=16"></script>
-  <script src="app.js?v=16"></script>
+  <script src="mission-data.js?v=17"></script>
+  <script src="app.js?v=17"></script>
 </body>
 </html>
