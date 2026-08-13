@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
 const { execFile } = require("node:child_process");
+const { WEEKLY_TEMPERATURE, assertNaturalWeeklyCopy, buildWeeklyPrompt } = require("./weekly-reflection");
 
 const ROOT = __dirname;
 const PORT = Number(process.env.PORT || 8000);
@@ -141,13 +142,13 @@ function contextFrom(payload) {
   return { mood: string(payload.mood, 40), profile, recent };
 }
 
-async function chat(prompt, imageData, maxTokens = 180, purpose = "ai", requestBytes = 0, imageBytes = 0) {
+async function chat(prompt, imageData, maxTokens = 180, purpose = "ai", requestBytes = 0, imageBytes = 0, temperature = 0.7) {
   const startedAt = Date.now();
   const apiKey = process.env.ORCAROUTER_API_KEY;
   const requestedModel = process.env.ORCAROUTER_MODEL || DEFAULT_MODEL;
   const content = [{ type: "text", text: prompt }];
   if (imageData) content.push({ type: "image_url", image_url: { url: imageData } });
-  const upstreamBody = JSON.stringify({ model: requestedModel, temperature: 0.7, max_tokens: maxTokens, response_format: { type: "json_object" }, messages: [{ role: "user", content }] });
+  const upstreamBody = JSON.stringify({ model: requestedModel, temperature, max_tokens: maxTokens, response_format: { type: "json_object" }, messages: [{ role: "user", content }] });
   const upstreamRequestBytes = Buffer.byteLength(upstreamBody);
   if (!apiKey) {
     const error = new Error("not-configured");
@@ -214,15 +215,10 @@ async function weeklyReflection(payload, requestBytes = 0) {
   })).filter((entry) => entry.id && (entry.answer || entry.observations.length)) : [];
   const allowedIds = new Set(entries.map((entry) => entry.id));
   if (!entries.length) throw new Error("weekly-evidence-missing");
-  const prompt = [
-    "あなたは『Routeoff』の週次編集者です。利用者が承認または修正した写真の根拠と、本人の言葉だけを使います。",
-    "感情、場所、人物属性、出来事、因果関係を推測しません。肯定的で穏やかな3行にし、それぞれに根拠となる入力IDを必ず付けます。",
-    "振り返りを踏まえ、これまでと少し異なる見方を試す5〜15分の寄り道を一つ提案します。次の寄り道にも理由と根拠IDを付けます。",
-    `承認済み記録: ${JSON.stringify(entries)}`,
-    '必ず次のJSONだけを返してください: {"lines":[{"text":"...","evidenceIds":["id"]},{"text":"...","evidenceIds":["id"]},{"text":"...","evidenceIds":["id"]}],"nextDetour":{"title":"...","instruction":"...","indoorInstruction":"...","question":"...","reason":"...","sourceIds":["id"]}}'
-  ].join("\n");
-  const result = await chat(prompt, null, 520, "weekly-reflection", requestBytes, 0);
-  return { ...extractWeekly(result.content, allowedIds), model: result.model, receipt: result.receipt };
+  const prompt = buildWeeklyPrompt(entries);
+  const result = await chat(prompt, null, 520, "weekly-reflection", requestBytes, 0, WEEKLY_TEMPERATURE);
+  const report = assertNaturalWeeklyCopy(extractWeekly(result.content, allowedIds), entries);
+  return { ...report, model: result.model, receipt: result.receipt };
 }
 
 async function costProbe(payload, requestBytes = 0) {
