@@ -17,6 +17,7 @@
 | サービス名 | 完了 | [#19](https://github.com/ryonpiiman3150-lab/AI-Hackathon/issues/19) Routeoffへ名称・ユーザー向け文言を更新 |
 | みんなのデモ投稿 | 完了 | [#15](https://github.com/ryonpiiman3150-lab/AI-Hackathon/issues/15) 架空参加者10名・10日分・ローカル生成PNG 100枚 |
 | プレゼンモード | 完了 | 暫定ログの再生成と4段階のデモ案内 |
+| AI送信・処理レシート | 完了 | [#23](https://github.com/ryonpiiman3150-lab/AI-Hackathon/issues/23) 送信前確認、画像の再エンコード、実測token・応答時間・推定コスト・フォールバックの表示 |
 | AIパーソナル提案 | 完了 | [#10](https://github.com/ryonpiiman3150-lab/AI-Hackathon/issues/10) 写真選択時の自動質問、[#11](https://github.com/ryonpiiman3150-lab/AI-Hackathon/issues/11) 気分選択時のお題提案。プロフィールと過去ログを文脈に利用 |
 | 外部共有 | 完了 | 採集カードの画像保存・OS標準共有・投稿文コピー。X / Instagramへの直接投稿は対象外 |
 | インフラ移行 | 判断済み | 外部公開またはAI接続時に OCI へ段階移行。詳細は [インフラ方針](./インフラ方針_2026-08-12.md) |

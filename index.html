@@ -48,7 +48,7 @@
           </section>
 
           <section id="proposal-step" class="step-panel" hidden aria-labelledby="proposal-heading">
-            <p class="kicker">TODAY'S DETOUR <span id="proposal-source" class="mock-label">固定</span></p><h2 id="proposal-heading" tabindex="-1">今日の寄り道</h2><p id="mission-ai-status" class="ai-status" aria-live="polite" hidden></p>
+            <p class="kicker">TODAY'S DETOUR <span id="proposal-source" class="mock-label">固定</span></p><h2 id="proposal-heading" tabindex="-1">今日の寄り道</h2><p id="mission-ai-status" class="ai-status" aria-live="polite" hidden></p><details id="mission-receipt" class="process-receipt" hidden><summary>AI処理レシート</summary><div data-receipt-body></div></details>
             <article class="mission-card" aria-live="polite"><div class="mission-meta"><span id="proposal-mood"></span><span id="mission-duration"></span></div><h3 id="mission-title"></h3><p id="mission-instruction"></p><p class="mission-mode" id="mission-mode"></p></article>
             <div class="proposal-actions"><button id="start-mission" class="button button-primary" type="button">この寄り道をはじめる <span aria-hidden="true">→</span></button><button id="toggle-indoor" class="button button-quiet" type="button">室内版を見る</button><button id="choose-new-mission" class="text-button" type="button">別の提案にする</button></div>
             <button id="save-blank" class="blank-link" type="button">今日は余白にする</button>
@@ -65,7 +65,7 @@
       <section class="screen" id="screen-record" data-screen="record" aria-labelledby="record-title" hidden><div class="screen-inner">
         <button id="back-to-active" class="back-button" type="button">← 採集中に戻る</button><div class="screen-heading"><p class="kicker">ONE PHOTO</p><h1 id="record-title" tabindex="-1">一枚を<br><em>持ち帰る。</em></h1><p class="lead">この一枚から、今日の発見を残します。</p></div>
         <div class="photo-stage"><img id="photo-preview" alt="選んだ写真のプレビュー" hidden><div class="photo-placeholder">写真を準備しています</div></div>
-        <section class="ai-invite" aria-labelledby="ai-invite-title"><p id="ai-invite-title">AIが、この一枚を見ています</p><p>写真を選ぶと、写真・いまの気分・非公開の設定・最近の採集（最大7件）をOrcaRouterへ自動送信し、コメントと一問を作ります。保存や公開はしません。</p><p id="ai-status" class="ai-status" aria-live="polite" hidden></p></section>
+        <section class="ai-invite" aria-labelledby="ai-invite-title"><p id="ai-invite-title">AIへ送る前に、確認</p><p>送るもの：位置情報などを除いた縮小画像、いま得たい気分、最近の記録（最大7件）。送らないもの：元画像、撮影位置、名前、ログイン情報、APIキー。</p><label class="ai-profile-option"><input id="include-private-profile" type="checkbox"> 非公開設定のうち年代・立場・生活状態・傾向も含める</label><div class="ai-send-actions"><button id="request-ai-reflection" class="small-button" type="button">この内容でAIに送る</button><button id="skip-ai-reflection" class="text-button" type="button">送らず固定の一問で続ける</button></div><p id="ai-status" class="ai-status" aria-live="polite">まだAIへ送信していません。</p><details id="reflection-receipt" class="process-receipt" hidden><summary>AI処理レシート</summary><div data-receipt-body></div></details></section>
         <article class="question-card"><p class="question-label">発見を残す一問 <span id="question-source" class="mock-label">固定</span></p><p id="ai-comment" class="ai-comment" hidden></p><p class="question-text" id="question-text"></p><label for="answer-input">あなたの一言 <span>任意</span></label><textarea id="answer-input" rows="4" maxlength="120" placeholder="短くても、空欄でも大丈夫です"></textarea><div class="answer-footer"><span id="answer-count">0 / 120</span><button id="skip-answer" class="text-button" type="button">答えずに進む</button></div></article>
         <button id="make-card" class="button button-primary full-button" type="button">採集記録を見る <span aria-hidden="true">→</span></button>
       </div></section>
@@ -101,6 +101,6 @@
   </div>
   <script src="mission-data.js?v=19"></script>
   <script src="community-feed-data.js?v=1"></script>
-  <script src="app.js?v=23"></script>
+  <script src="app.js?v=24"></script>
 </body>
 </html>

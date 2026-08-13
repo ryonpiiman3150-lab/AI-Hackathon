@@ -9,6 +9,10 @@ const ROOT = __dirname;
 const PORT = Number(process.env.PORT || 8000);
 const MAX_BODY_BYTES = 5 * 1024 * 1024;
 const MIME_TYPES = { ".css": "text/css; charset=utf-8", ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".json": "application/json; charset=utf-8", ".png": "image/png" };
+const DEFAULT_MODEL = "openai/gpt-4o-mini";
+const DEFAULT_PRICES = {
+  "openai/gpt-4o-mini": { input: 0.15, output: 0.60, source: "OpenAI published price (USD / 1M tokens)" }
+};
 
 function loadLocalEnv() {
   const envFile = path.join(ROOT, ".env.local");
@@ -40,6 +44,48 @@ function readBody(req) {
 
 function string(value, max) { return typeof value === "string" ? value.trim().slice(0, max) : ""; }
 
+function finiteNumber(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? number : null;
+}
+
+function priceFor(model) {
+  const configuredInput = finiteNumber(process.env.ORCAROUTER_INPUT_USD_PER_MILLION);
+  const configuredOutput = finiteNumber(process.env.ORCAROUTER_OUTPUT_USD_PER_MILLION);
+  if (configuredInput !== null && configuredOutput !== null) {
+    return { input: configuredInput, output: configuredOutput, source: "configured rates (USD / 1M tokens)" };
+  }
+  return DEFAULT_PRICES[model] || null;
+}
+
+function buildReceipt({ purpose, status, startedAt, requestBytes = 0, imageBytes = 0, requestedModel = DEFAULT_MODEL, resolvedModel = requestedModel, usage = {}, actualCostUsd = null, fallbackLevel = null }) {
+  const promptTokens = finiteNumber(usage.prompt_tokens) || 0;
+  const completionTokens = finiteNumber(usage.completion_tokens) || 0;
+  const totalTokens = finiteNumber(usage.total_tokens) ?? (promptTokens + completionTokens);
+  const rates = priceFor(resolvedModel);
+  const measuredCost = finiteNumber(actualCostUsd);
+  const estimatedCost = rates && totalTokens > 0 ? (promptTokens * rates.input + completionTokens * rates.output) / 1_000_000 : null;
+  return {
+    id: `${purpose}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    purpose,
+    status,
+    requestedModel,
+    resolvedModel,
+    fallbackLevel,
+    requestBytes,
+    imageBytes,
+    promptTokens,
+    completionTokens,
+    totalTokens,
+    latencyMs: Math.max(0, Date.now() - startedAt),
+    costUsd: measuredCost ?? estimatedCost,
+    costKind: measuredCost !== null ? "provider-reported" : estimatedCost !== null ? "estimated-from-measured-tokens" : "unavailable",
+    costBasis: measuredCost !== null ? "upstream response" : rates?.source || "token price not configured",
+    createdAt: Date.now()
+  };
+}
+
 function extractJson(content) {
   const text = typeof content === "string" ? content : "";
   const candidate = text.match(/\{[\s\S]*\}/)?.[0] || text;
@@ -70,18 +116,37 @@ function contextFrom(payload) {
   return { mood: string(payload.mood, 40), profile, recent };
 }
 
-async function chat(prompt, imageData, maxTokens = 180) {
+async function chat(prompt, imageData, maxTokens = 180, purpose = "ai", requestBytes = 0, imageBytes = 0) {
+  const startedAt = Date.now();
   const apiKey = process.env.ORCAROUTER_API_KEY;
-  if (!apiKey) { const error = new Error("not-configured"); error.status = 503; throw error; }
+  const requestedModel = process.env.ORCAROUTER_MODEL || DEFAULT_MODEL;
+  if (!apiKey) {
+    const error = new Error("not-configured");
+    error.status = 503;
+    error.receipt = buildReceipt({ purpose, status: "local-fallback", startedAt, requestBytes, imageBytes, requestedModel });
+    throw error;
+  }
   const endpoint = `${(process.env.ORCAROUTER_BASE_URL || "https://api.orcarouter.ai/v1").replace(/\/$/, "")}/chat/completions`;
   const content = [{ type: "text", text: prompt }];
   if (imageData) content.push({ type: "image_url", image_url: { url: imageData } });
-  const upstream = await fetch(endpoint, { method: "POST", headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model: process.env.ORCAROUTER_MODEL || "openai/gpt-4o-mini", temperature: 0.7, max_tokens: maxTokens, messages: [{ role: "user", content }] }) });
-  if (!upstream.ok) { const error = new Error("upstream-failed"); error.status = 502; throw error; }
-  return { content: (await upstream.json())?.choices?.[0]?.message?.content, model: process.env.ORCAROUTER_MODEL || "openai/gpt-4o-mini" };
+  let upstream;
+  try {
+    upstream = await fetch(endpoint, { method: "POST", headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model: requestedModel, temperature: 0.7, max_tokens: maxTokens, messages: [{ role: "user", content }] }) });
+  } catch (cause) {
+    const error = new Error("upstream-unreachable", { cause });
+    error.status = 502;
+    error.receipt = buildReceipt({ purpose, status: "local-fallback", startedAt, requestBytes, imageBytes, requestedModel });
+    throw error;
+  }
+  const responseBody = await upstream.json().catch(() => ({}));
+  const resolvedModel = upstream.headers.get("x-orca-resolved-model") || upstream.headers.get("x-orca-fallback-model") || responseBody.model || requestedModel;
+  const fallbackLevel = finiteNumber(upstream.headers.get("x-orca-fallback-level"));
+  const receipt = buildReceipt({ purpose, status: upstream.ok ? "success" : "local-fallback", startedAt, requestBytes, imageBytes, requestedModel, resolvedModel, usage: responseBody.usage, actualCostUsd: responseBody.cost ?? responseBody.usage?.cost, fallbackLevel });
+  if (!upstream.ok) { const error = new Error("upstream-failed"); error.status = 502; error.receipt = receipt; throw error; }
+  return { content: responseBody?.choices?.[0]?.message?.content, model: resolvedModel, receipt };
 }
 
-async function reflect(payload) {
+async function reflect(payload, requestBytes = 0) {
   const imageData = string(payload.imageData, MAX_BODY_BYTES);
   if (!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(imageData)) throw new Error("invalid-image");
   const { mood, profile, recent } = contextFrom(payload);
@@ -94,11 +159,11 @@ async function reflect(payload) {
     `最近の採集（最大7件）: ${JSON.stringify(recent)}`,
     '必ず次のJSONだけを返してください: {"comment":"...","question":"..."}'
   ].join("\n");
-  const result = await chat(prompt, imageData);
-  return { ...extractJson(result.content), model: result.model };
+  const result = await chat(prompt, imageData, 180, "photo-reflection", requestBytes, Math.floor((imageData.split(",")[1]?.length || 0) * 0.75));
+  return { ...extractJson(result.content), model: result.model, receipt: result.receipt };
 }
 
-async function mission(payload) {
+async function mission(payload, requestBytes = 0) {
   const { mood, profile, recent } = contextFrom(payload);
   const prompt = [
     "あなたは『Routeoff』の穏やかな伴走者です。利用者の気分と過去の採集に合わせ、5〜15分でできる小さな寄り道を一つ提案します。",
@@ -109,20 +174,20 @@ async function mission(payload) {
     `最近の採集（最大7件）: ${JSON.stringify(recent)}`,
     '必ず次のJSONだけを返してください: {"title":"...","instruction":"...","indoorInstruction":"...","question":"..."}'
   ].join("\n");
-  const result = await chat(prompt, null, 260);
-  return { ...extractMission(result.content), model: result.model };
+  const result = await chat(prompt, null, 260, "daily-mission", requestBytes, 0);
+  return { ...extractMission(result.content), model: result.model, receipt: result.receipt };
 }
 
 loadLocalEnv();
 const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && req.url === "/api/health") return sendJson(res, 200, { configured: Boolean(process.env.ORCAROUTER_API_KEY) });
   if (req.method === "POST" && req.url === "/api/reflection") {
-    try { return sendJson(res, 200, await reflect(JSON.parse(await readBody(req)))); }
-    catch (error) { return sendJson(res, error.status || 400, { error: error.message === "not-configured" ? "AI接続はまだ設定されていません。" : "AIから一問を受け取れませんでした。" }); }
+    try { const raw = await readBody(req); return sendJson(res, 200, await reflect(JSON.parse(raw), Buffer.byteLength(raw))); }
+    catch (error) { return sendJson(res, error.status || 400, { error: error.message === "not-configured" ? "AI接続はまだ設定されていません。" : "AIから一問を受け取れませんでした。", receipt: error.receipt }); }
   }
   if (req.method === "POST" && req.url === "/api/mission") {
-    try { return sendJson(res, 200, await mission(JSON.parse(await readBody(req)))); }
-    catch (error) { return sendJson(res, error.status || 400, { error: error.message === "not-configured" ? "AI接続はまだ設定されていません。" : "AIから今日のお題を受け取れませんでした。" }); }
+    try { const raw = await readBody(req); return sendJson(res, 200, await mission(JSON.parse(raw), Buffer.byteLength(raw))); }
+    catch (error) { return sendJson(res, error.status || 400, { error: error.message === "not-configured" ? "AI接続はまだ設定されていません。" : "AIから今日のお題を受け取れませんでした。", receipt: error.receipt }); }
   }
   if (req.method !== "GET" && req.method !== "HEAD") return sendJson(res, 405, { error: "method-not-allowed" });
   const requestPath = decodeURIComponent((req.url || "/").split("?")[0]);
