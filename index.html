@@ -66,6 +66,7 @@
         <button id="back-to-active" class="back-button" type="button">← 採集中に戻る</button><div class="screen-heading"><p class="kicker">ONE PHOTO</p><h1 id="record-title" tabindex="-1">一枚を<br><em>持ち帰る。</em></h1><p class="lead">この一枚から、今日の発見を残します。</p></div>
         <div class="photo-stage"><img id="photo-preview" alt="選んだ写真のプレビュー" hidden><div class="photo-placeholder">写真を準備しています</div></div>
         <section class="ai-invite" aria-labelledby="ai-invite-title"><p id="ai-invite-title">AIへ送る前に、確認</p><p>送るもの：位置情報などを除いた縮小画像、いま得たい気分、最近の記録（最大7件）。送らないもの：元画像、撮影位置、名前、ログイン情報、APIキー。</p><label class="ai-profile-option"><input id="include-private-profile" type="checkbox"> 非公開設定のうち年代・立場・生活状態・傾向も含める</label><div class="ai-send-actions"><button id="request-ai-reflection" class="small-button" type="button">この内容でAIに送る</button><button id="skip-ai-reflection" class="text-button" type="button">送らず固定の一問で続ける</button></div><p id="ai-status" class="ai-status" aria-live="polite">まだAIへ送信していません。</p><details id="reflection-receipt" class="process-receipt" hidden><summary>AI処理レシート</summary><div data-receipt-body></div></details></section>
+        <section id="observation-review" class="observation-review" aria-labelledby="observation-review-title" hidden><div class="observation-heading"><p class="kicker">VISIBLE FACTS</p><h2 id="observation-review-title">写真から見つけた、根拠候補</h2><p>AIの候補をそのまま記録にはしません。採用するか、自分の言葉へ直すか、残さないかを選べます。</p></div><div id="observation-list"></div></section>
         <article class="question-card"><p class="question-label">発見を残す一問 <span id="question-source" class="mock-label">固定</span></p><p id="ai-comment" class="ai-comment" hidden></p><p class="question-text" id="question-text"></p><label for="answer-input">あなたの一言 <span>任意</span></label><textarea id="answer-input" rows="4" maxlength="120" placeholder="短くても、空欄でも大丈夫です"></textarea><div class="answer-footer"><span id="answer-count">0 / 120</span><button id="skip-answer" class="text-button" type="button">答えずに進む</button></div></article>
         <button id="make-card" class="button button-primary full-button" type="button">採集記録を見る <span aria-hidden="true">→</span></button>
       </div></section>
@@ -101,6 +102,6 @@
   </div>
   <script src="mission-data.js?v=19"></script>
   <script src="community-feed-data.js?v=1"></script>
-  <script src="app.js?v=24"></script>
+  <script src="app.js?v=25"></script>
 </body>
 </html>

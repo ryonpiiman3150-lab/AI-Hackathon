@@ -92,8 +92,9 @@ function extractJson(content) {
   const parsed = JSON.parse(candidate);
   const comment = string(parsed.comment, 180);
   const question = string(parsed.question, 120);
-  if (!comment || !question) throw new Error("invalid-model-response");
-  return { comment, question };
+  const observations = Array.isArray(parsed.observations) ? parsed.observations.map((value) => string(value, 90)).filter(Boolean).slice(0, 3) : [];
+  if (!comment || !question || !observations.length) throw new Error("invalid-model-response");
+  return { comment, question, observations };
 }
 
 function extractMission(content) {
@@ -131,7 +132,7 @@ async function chat(prompt, imageData, maxTokens = 180, purpose = "ai", requestB
   if (imageData) content.push({ type: "image_url", image_url: { url: imageData } });
   let upstream;
   try {
-    upstream = await fetch(endpoint, { method: "POST", headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model: requestedModel, temperature: 0.7, max_tokens: maxTokens, messages: [{ role: "user", content }] }) });
+    upstream = await fetch(endpoint, { method: "POST", headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model: requestedModel, temperature: 0.7, max_tokens: maxTokens, response_format: { type: "json_object" }, messages: [{ role: "user", content }] }) });
   } catch (cause) {
     const error = new Error("upstream-unreachable", { cause });
     error.status = 502;
@@ -152,12 +153,12 @@ async function reflect(payload, requestBytes = 0) {
   const { mood, profile, recent } = contextFrom(payload);
   const prompt = [
     "あなたは『Routeoff』の穏やかな伴走者です。添付画像について、見えない事実・人物属性・場所・感情を断定しません。",
-    "日本語で、写真から読み取れる色、光、形、配置、質感などを一つだけ肯定的にコメントし、その人自身の発見を促す質問を一つ返します。",
+    "日本語で、写真から直接読み取れる色、光、形、配置、質感だけを、独立した短い根拠候補として1〜3件返します。推測、固有の場所、人物属性、感情は含めません。あわせて肯定的なコメントと、その人自身の発見を促す質問を一つ返します。",
     "コメントは90文字以内、質問は60文字以内。評価・助言・命令・SNS風の煽り・絵文字は不要です。個人情報は繰り返さず、プロフィールは質問の距離感を調整する参考にだけ使ってください。",
     `いま得たい気分: ${mood || "未選択"}`,
     `非公開プロフィール: ${JSON.stringify(profile)}`,
     `最近の採集（最大7件）: ${JSON.stringify(recent)}`,
-    '必ず次のJSONだけを返してください: {"comment":"...","question":"..."}'
+    '必ず次のJSONだけを返してください: {"observations":["見えている事実1","見えている事実2"],"comment":"...","question":"..."}'
   ].join("\n");
   const result = await chat(prompt, imageData, 180, "photo-reflection", requestBytes, Math.floor((imageData.split(",")[1]?.length || 0) * 0.75));
   return { ...extractJson(result.content), model: result.model, receipt: result.receipt };
