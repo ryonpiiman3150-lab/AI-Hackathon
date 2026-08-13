@@ -7,10 +7,12 @@
 | 項目 | 状態 | 内容 |
 |---|---|---|
 | ローカルデモ | 利用可 | HTML / CSS / JavaScript と IndexedDB で動作 |
+| 既存端末の保存互換 | 完了 | [#14](https://github.com/ryonpiiman3150-lab/AI-Hackathon/issues/14) 旧形式のIndexedDBを既存記録を残したまま更新 |
 | テストログイン | 完了 | デモユーザー1・デモユーザー2のローカルテストアカウント |
 | 非公開プロフィール | 完了 | 任意インタビュー、あとで設定、端末内保存、みんなには非表示 |
 | 採集帳 | 完了 | 写真、余白、視点レポート、10日分の暫定ログ |
 | みんな | 完了 | 両ユーザーの投稿、気分の近さによる表示順、自分の実写真表示 |
+| みんなのデモ投稿 | 完了 | [#15](https://github.com/ryonpiiman3150-lab/AI-Hackathon/issues/15) 架空参加者10名・10日分・ローカル生成PNG 100枚 |
 | プレゼンモード | 完了 | 暫定ログの再生成と4段階のデモ案内 |
 | AIパーソナル提案 | 完了 | [#10](https://github.com/ryonpiiman3150-lab/AI-Hackathon/issues/10) 写真選択時の自動質問、[#11](https://github.com/ryonpiiman3150-lab/AI-Hackathon/issues/11) 気分選択時のお題提案。プロフィールと過去ログを文脈に利用 |
 | 外部共有 | 完了 | 採集カードの画像保存・OS標準共有・投稿文コピー。X / Instagramへの直接投稿は対象外 |
