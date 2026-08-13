@@ -3,6 +3,7 @@
 const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
+const { execFile } = require("node:child_process");
 
 const ROOT = __dirname;
 const PORT = Number(process.env.PORT || 8000);
@@ -131,4 +132,23 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "HEAD") return res.end();
   fs.createReadStream(filePath).pipe(res);
 });
-server.listen(PORT, "127.0.0.1", () => console.log(`日常採集: http://127.0.0.1:${PORT}`));
+function openBrowser(url) {
+  if (process.env.OPEN_BROWSER === "0") return;
+  const command = process.platform === "darwin" ? "open" : process.platform === "win32" ? "cmd" : "xdg-open";
+  const args = process.platform === "win32" ? ["/c", "start", "", url] : [url];
+  execFile(command, args, () => {});
+}
+
+server.on("error", (error) => {
+  if (error.code === "EADDRINUSE") {
+    console.error(`ポート${PORT}はすでに使われています。別のアプリを止めるか、PORT=8001 npm start を試してください。`);
+  } else {
+    console.error("ローカルサーバーを起動できませんでした。", error.message);
+  }
+  process.exitCode = 1;
+});
+server.listen(PORT, "127.0.0.1", () => {
+  const url = `http://127.0.0.1:${PORT}`;
+  console.log(`日常採集: ${url}`);
+  openBrowser(url);
+});

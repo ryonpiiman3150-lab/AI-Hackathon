@@ -7,6 +7,7 @@
 | 項目 | 状態 | 内容 |
 |---|---|---|
 | ローカルデモ | 利用可 | HTML / CSS / JavaScript と IndexedDB で動作 |
+| 他PCでのローカル利用 | 完了 | [#16](https://github.com/ryonpiiman3150-lab/AI-Hackathon/issues/16) Node.jsで独立起動。各PCの記録はそのPC内だけに保存 |
 | 既存端末の保存互換 | 完了 | [#14](https://github.com/ryonpiiman3150-lab/AI-Hackathon/issues/14) 旧形式のIndexedDBを既存記録を残したまま更新 |
 | テストログイン | 完了 | デモユーザー1・デモユーザー2のローカルテストアカウント |
 | 非公開プロフィール | 完了 | 任意インタビュー、あとで設定、端末内保存、みんなには非表示 |
@@ -35,15 +36,45 @@
 
 ## 起動方法
 
-このフォルダでローカルサーバーを起動します。通常の体験だけならキーは不要です。
+各PCでこのリポジトリのフォルダ一式をコピーし、[Node.js 20 LTS](https://nodejs.org/) を入れてください。通常の体験だけならキーは不要です。起動したPC以外からはアクセスできず、写真・下書き・採集記録はそのPCのブラウザ内にだけ保存されます。
+
+### Mac
+
+Finderで `start.command` をダブルクリックします。macOSが初回実行を止めた場合は、右クリックして「開く」を選びます。ターミナルから起動する場合は次でも構いません。
 
 ```bash
 npm start
 ```
 
-ブラウザで http://127.0.0.1:8000/ を開いてください。
+### Windows
 
-AI一問インタビューを使うときだけ、[.env.example](./.env.example) を `.env.local` にコピーし、発行済みの `ORCAROUTER_API_KEY` を設定します。`.env.local` はGit管理しません。
+エクスプローラーで `start.bat` をダブルクリックするか、PowerShellで次を実行します。
+
+```powershell
+npm start
+```
+
+### Linux
+
+ターミナルで次を実行します。
+
+```bash
+npm start
+```
+
+起動すると既定ブラウザで `http://127.0.0.1:8000/` を開きます。終了するには、起動したターミナルで `Ctrl + C` を押します。ポート8000が既に使われている場合は、Mac / Linuxでは次のように別ポートで起動できます。
+
+```bash
+PORT=8001 npm start
+```
+
+Windows PowerShellでは次を使います。
+
+```powershell
+$env:PORT=8001; npm start
+```
+
+AI一問インタビューを使うときだけ、[.env.example](./.env.example) を `.env.local` にコピーし、発行済みの `ORCAROUTER_API_KEY` を設定します。`.env.local` はそのPCだけに置き、Gitや他人へ共有しません。キーが未設定でも、固定のお題でアプリを最後まで利用できます。
 
 ## 確認できること
 

@@ -2,7 +2,11 @@
   "name": "nichijo-shusai",
   "private": true,
   "version": "0.1.0",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "start:no-browser": "OPEN_BROWSER=0 node server.js"
   }
 }
