@@ -119,6 +119,7 @@ function extractWeekly(content, allowedIds) {
   const candidate = text.match(/\{[\s\S]*\}/)?.[0] || text;
   const parsed = JSON.parse(candidate);
   const lines = Array.isArray(parsed.lines) ? parsed.lines.slice(0, 3).map((line) => ({
+    role: string(line?.role, 16),
     text: string(line?.text, 140),
     evidenceIds: Array.isArray(line?.evidenceIds) ? [...new Set(line.evidenceIds.map((id) => string(id, 40)).filter((id) => allowedIds.has(id)))].slice(0, 3) : []
   })).filter((line) => line.text && line.evidenceIds.length) : [];
@@ -217,7 +218,8 @@ async function weeklyReflection(payload, requestBytes = 0) {
   if (!entries.length) throw new Error("weekly-evidence-missing");
   const prompt = buildWeeklyPrompt(entries);
   const result = await chat(prompt, { maxTokens: 520, purpose: "weekly-reflection", requestBytes, temperature: WEEKLY_TEMPERATURE });
-  const report = validateWeeklyReport(extractWeekly(result.content, allowedIds), entries);
+  const validated = validateWeeklyReport(extractWeekly(result.content, allowedIds), entries);
+  const report = { ...validated, lines: validated.lines.map(({ role, ...line }) => line) };
   return { ...report, model: result.model, receipt: result.receipt };
 }
 

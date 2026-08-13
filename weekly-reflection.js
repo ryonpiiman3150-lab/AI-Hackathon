@@ -12,7 +12,8 @@ const DISALLOWED_WEEKLY_PHRASES = [
   "今週の見方",
   "してくれ"
 ];
-const GENERIC_EVIDENCE_BIGRAMS = new Set(["写真", "記録", "今週", "言葉", "内容", "一枚", "その", "こと", "もの", "ます", "した", "して", "いる", "ある", "です", "から", "ので"]);
+const GENERIC_EVIDENCE_TERMS = new Set(["写真", "記録", "今週", "言葉", "内容", "一枚", "利用者", "時間", "場所"]);
+const GENERIC_SINGLE_KANJI = new Set(["気", "見", "写", "立", "止", "人", "物", "日", "時", "目", "分", "言", "小", "大", "新"]);
 
 function normalizeCopy(value) {
   return String(value || "").replace(/[\s。、，．「」『』“”'\"]/g, "");
@@ -23,12 +24,9 @@ function minutesIn(text) {
   return [...normalized.matchAll(/(\d{1,2})\s*分/g)].map((match) => Number(match[1]));
 }
 
-function evidenceBigrams(entries) {
-  const terms = (entries || []).flatMap((entry) => [entry?.answer, ...(entry?.observations || [])]).map(normalizeCopy).flatMap((text) => {
-    const characters = [...text];
-    return characters.slice(0, -1).map((character, index) => character + characters[index + 1]);
-  });
-  return [...new Set(terms.filter((term) => !GENERIC_EVIDENCE_BIGRAMS.has(term)))];
+function concreteEvidenceTerms(entries) {
+  const terms = (entries || []).flatMap((entry) => [entry?.answer, ...(entry?.observations || [])]).flatMap((text) => String(text || "").match(/[\p{Script=Han}\p{Script=Katakana}ー]+/gu) || []);
+  return [...new Set(terms.filter((term) => !GENERIC_EVIDENCE_TERMS.has(term) && (term.length > 1 || !GENERIC_SINGLE_KANJI.has(term))))];
 }
 
 function validateWeeklyReport(report, entries) {
@@ -39,13 +37,26 @@ function validateWeeklyReport(report, entries) {
   const hasDisallowedPhrase = generatedTexts.some((text) => DISALLOWED_WEEKLY_PHRASES.some((phrase) => text.includes(phrase)));
   const copiesSource = lineTexts.some((text) => sourceTexts.includes(normalizeCopy(text)));
   if (hasDisallowedPhrase || copiesSource) throw new Error("unnatural-weekly-copy");
+  const expectedRoles = ["trend", "action", "positive"];
+  const hasExpectedRoles = report.lines.every((line, index) => line?.role === expectedRoles[index]);
+  const trendUsesMultipleRecords = entries.length < 2 || report.lines[0]?.evidenceIds?.length >= 2;
+  const entriesForLine = (line) => {
+    const evidenceIds = new Set(line?.evidenceIds || []);
+    return entries.filter((entry) => evidenceIds.has(entry.id));
+  };
+  const trendMentionsEvidence = concreteEvidenceTerms(entriesForLine(report.lines[0])).some((term) => lineTexts[0].includes(term));
+  const actionMentionsEvidence = concreteEvidenceTerms(entriesForLine(report.lines[1])).some((term) => lineTexts[1].includes(term));
+  const describesTrend = /(多|よく|重な|続い|目を向け|目が向|増え|共通|枚)/.test(lineTexts[0]) && trendMentionsEvidence;
+  const describesAction = /(立ち止|書|残|撮|歩|見上|しゃが|座|曲が|遠回り|選|比べ|探|気づ|向け|写|眺め|見つけ|見て|見た)/.test(lineTexts[1]) && actionMentionsEvidence;
+  const givesGroundedPraise = /(でき|残せ|書け|振り返れ|気づけ|立ち止まれ|見つけられ|向けられ|続けられ)(ています|ました)/.test(lineTexts[2]);
+  if (!hasExpectedRoles || !trendUsesMultipleRecords || !describesTrend || !describesAction || !givesGroundedPraise) throw new Error("invalid-weekly-lines");
   const next = report?.nextDetour || {};
   const instructionMinutes = [next.instruction, next.indoorInstruction].map(minutesIn);
   const hasValidDuration = instructionMinutes.every((values) => values.length && values.every((minutes) => minutes >= 5 && minutes <= 15));
   const sourceIds = new Set(next.sourceIds || []);
   const referencedEntries = (entries || []).filter((entry) => sourceIds.has(entry.id));
   const reason = normalizeCopy(next.reason);
-  const hasSpecificReason = evidenceBigrams(referencedEntries).some((term) => reason.includes(term));
+  const hasSpecificReason = concreteEvidenceTerms(referencedEntries).some((term) => reason.includes(term));
   if (!hasValidDuration || normalizeCopy(next.instruction).length < 10 || normalizeCopy(next.indoorInstruction).length < 10 || !hasSpecificReason) throw new Error("invalid-weekly-detour");
   return report;
 }
@@ -54,12 +65,12 @@ function buildWeeklyPrompt(entries) {
   return [
     "あなたは『Routeoff』の週次編集者です。利用者が確認または修正した写真の内容と、その日に書いた言葉だけを使います。",
     "感情、場所、人物属性、出来事、因果関係を推測しません。結論を先に、普段の会話で使う自然な日本語で、各行60文字以内にします。",
-    "入力文をそのまま並べないでください。複数の記録を見比べ、3行を次の役割に分けます。1行目：複数の記録に共通する傾向。2行目：記録から分かる具体的な気づきや行動。3行目：できていたことを根拠の範囲で肯定的にまとめる。",
+    "入力文をそのまま並べないでください。複数の記録を見比べ、3行を次の役割に分けます。1行目：複数の記録に共通する傾向。2行目：記録から分かる具体的な気づきや行動。3行目：できていたことを根拠の範囲で肯定的にまとめる。1行目と2行目には、参照した記録に出てくる具体的な物や行動を含めます。",
     `詩的な比喩や抽象的な言い回しを避け、次の定型句や言い回しを使いません：「${DISALLOWED_WEEKLY_PHRASES.join("」「")}」。大げさに褒めず、読んですぐ意味が分かる文にします。`,
     "各行に、もとにした入力IDを必ず付けます。複数の記録に共通する傾向には、可能な限り2件以上のIDを付けます。",
     "振り返りをもとに、5〜15分で実行できる具体的な行動を、次の寄り道として一つ提案します。屋外と室内の手順には、それぞれ所要時間を『5分』『10分』『15分』のいずれかで明記します。題名は行動が分かる言葉にします。理由は今週の記録と直接結び付け、参照する記録に出てくる具体的な物や行動を一つ以上そのまま含めます。一般論だけにしません。理由と提案にも入力IDを付けます。",
     `確認済みの記録: ${JSON.stringify(entries)}`,
-    '必ず次のJSONだけを返してください: {"lines":[{"text":"...","evidenceIds":["id"]},{"text":"...","evidenceIds":["id"]},{"text":"...","evidenceIds":["id"]}],"nextDetour":{"title":"...","instruction":"...","indoorInstruction":"...","question":"...","reason":"...","sourceIds":["id"]}}'
+    '必ず次のJSONだけを返してください: {"lines":[{"role":"trend","text":"...","evidenceIds":["id1","id2"]},{"role":"action","text":"...","evidenceIds":["id"]},{"role":"positive","text":"...","evidenceIds":["id"]}],"nextDetour":{"title":"...","instruction":"...","indoorInstruction":"...","question":"...","reason":"...","sourceIds":["id"]}}'
   ].join("\n");
 }
 
