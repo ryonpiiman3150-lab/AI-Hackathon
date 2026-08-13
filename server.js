@@ -56,10 +56,12 @@ function priceFor(model) {
   if (configuredInput !== null && configuredOutput !== null) {
     return { input: configuredInput, output: configuredOutput, source: "configured rates (USD / 1M tokens)" };
   }
-  return DEFAULT_PRICES[model] || null;
+  if (DEFAULT_PRICES[model]) return DEFAULT_PRICES[model];
+  if (/^(?:openai\/)?gpt-4o-mini(?:-\d{4}-\d{2}-\d{2})?$/.test(String(model))) return DEFAULT_PRICES["openai/gpt-4o-mini"];
+  return null;
 }
 
-function buildReceipt({ purpose, status, startedAt, requestBytes = 0, imageBytes = 0, requestedModel = DEFAULT_MODEL, resolvedModel = requestedModel, usage = {}, actualCostUsd = null, fallbackLevel = null }) {
+function buildReceipt({ purpose, status, startedAt, requestBytes = 0, localRequestBytes = 0, imageBytes = 0, requestedModel = DEFAULT_MODEL, resolvedModel = requestedModel, usage = {}, actualCostUsd = null, fallbackLevel = null, simulation = false }) {
   const promptTokens = finiteNumber(usage.prompt_tokens) || 0;
   const completionTokens = finiteNumber(usage.completion_tokens) || 0;
   const totalTokens = finiteNumber(usage.total_tokens) ?? (promptTokens + completionTokens);
@@ -73,7 +75,9 @@ function buildReceipt({ purpose, status, startedAt, requestBytes = 0, imageBytes
     requestedModel,
     resolvedModel,
     fallbackLevel,
+    simulation,
     requestBytes,
+    localRequestBytes,
     imageBytes,
     promptTokens,
     completionTokens,
@@ -141,28 +145,30 @@ async function chat(prompt, imageData, maxTokens = 180, purpose = "ai", requestB
   const startedAt = Date.now();
   const apiKey = process.env.ORCAROUTER_API_KEY;
   const requestedModel = process.env.ORCAROUTER_MODEL || DEFAULT_MODEL;
+  const content = [{ type: "text", text: prompt }];
+  if (imageData) content.push({ type: "image_url", image_url: { url: imageData } });
+  const upstreamBody = JSON.stringify({ model: requestedModel, temperature: 0.7, max_tokens: maxTokens, response_format: { type: "json_object" }, messages: [{ role: "user", content }] });
+  const upstreamRequestBytes = Buffer.byteLength(upstreamBody);
   if (!apiKey) {
     const error = new Error("not-configured");
     error.status = 503;
-    error.receipt = buildReceipt({ purpose, status: "local-fallback", startedAt, requestBytes, imageBytes, requestedModel });
+    error.receipt = buildReceipt({ purpose, status: "local-fallback", startedAt, requestBytes: 0, localRequestBytes: requestBytes, imageBytes: 0, requestedModel });
     throw error;
   }
   const endpoint = `${(process.env.ORCAROUTER_BASE_URL || "https://api.orcarouter.ai/v1").replace(/\/$/, "")}/chat/completions`;
-  const content = [{ type: "text", text: prompt }];
-  if (imageData) content.push({ type: "image_url", image_url: { url: imageData } });
   let upstream;
   try {
-    upstream = await fetch(endpoint, { method: "POST", headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model: requestedModel, temperature: 0.7, max_tokens: maxTokens, response_format: { type: "json_object" }, messages: [{ role: "user", content }] }) });
+    upstream = await fetch(endpoint, { method: "POST", headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: upstreamBody });
   } catch (cause) {
     const error = new Error("upstream-unreachable", { cause });
     error.status = 502;
-    error.receipt = buildReceipt({ purpose, status: "local-fallback", startedAt, requestBytes, imageBytes, requestedModel });
+    error.receipt = buildReceipt({ purpose, status: "local-fallback", startedAt, requestBytes: upstreamRequestBytes, localRequestBytes: requestBytes, imageBytes, requestedModel });
     throw error;
   }
   const responseBody = await upstream.json().catch(() => ({}));
   const resolvedModel = upstream.headers.get("x-orca-resolved-model") || upstream.headers.get("x-orca-fallback-model") || responseBody.model || requestedModel;
   const fallbackLevel = finiteNumber(upstream.headers.get("x-orca-fallback-level"));
-  const receipt = buildReceipt({ purpose, status: upstream.ok ? "success" : "local-fallback", startedAt, requestBytes, imageBytes, requestedModel, resolvedModel, usage: responseBody.usage, actualCostUsd: responseBody.cost ?? responseBody.usage?.cost, fallbackLevel });
+  const receipt = buildReceipt({ purpose, status: upstream.ok ? "success" : "local-fallback", startedAt, requestBytes: upstreamRequestBytes, localRequestBytes: requestBytes, imageBytes, requestedModel, resolvedModel, usage: responseBody.usage, actualCostUsd: responseBody.cost ?? responseBody.usage?.cost, fallbackLevel });
   if (!upstream.ok) { const error = new Error("upstream-failed"); error.status = 502; error.receipt = receipt; throw error; }
   return { content: responseBody?.choices?.[0]?.message?.content, model: resolvedModel, receipt };
 }
@@ -219,6 +225,22 @@ async function weeklyReflection(payload, requestBytes = 0) {
   return { ...extractWeekly(result.content, allowedIds), model: result.model, receipt: result.receipt };
 }
 
+async function costProbe(payload, requestBytes = 0) {
+  if (payload?.mode === "forced-fallback") {
+    const requestedModel = process.env.ORCAROUTER_MODEL || DEFAULT_MODEL;
+    const error = new Error("forced-fallback");
+    error.status = 502;
+    error.receipt = buildReceipt({ purpose: "cost-probe", status: "local-fallback", startedAt: Date.now(), requestBytes: 0, localRequestBytes: requestBytes, imageBytes: 0, requestedModel, simulation: true });
+    throw error;
+  }
+  const prompt = [
+    "これはRouteoffのコスト計測用の固定テストです。利用者の写真、記録、プロフィール、名前は含まれていません。",
+    "必ず次のJSONだけを返してください: {\"ok\":true}"
+  ].join("\n");
+  const result = await chat(prompt, null, 40, "cost-probe", requestBytes, 0);
+  return { ok: true, model: result.model, receipt: result.receipt };
+}
+
 loadLocalEnv();
 const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && req.url === "/api/health") return sendJson(res, 200, { configured: Boolean(process.env.ORCAROUTER_API_KEY) });
@@ -233,6 +255,10 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "POST" && req.url === "/api/weekly-reflection") {
     try { const raw = await readBody(req); return sendJson(res, 200, await weeklyReflection(JSON.parse(raw), Buffer.byteLength(raw))); }
     catch (error) { return sendJson(res, error.status || 400, { error: error.message === "not-configured" ? "AI接続はまだ設定されていません。" : "週の振り返りを更新できませんでした。", receipt: error.receipt }); }
+  }
+  if (req.method === "POST" && req.url === "/api/cost-probe") {
+    try { const raw = await readBody(req); return sendJson(res, 200, await costProbe(JSON.parse(raw || "{}"), Buffer.byteLength(raw))); }
+    catch (error) { return sendJson(res, error.status || 400, { error: error.message === "not-configured" ? "AI接続はまだ設定されていません。" : "審査用のAI実測を完了できませんでした。", receipt: error.receipt }); }
   }
   if (req.method !== "GET" && req.method !== "HEAD") return sendJson(res, 405, { error: "method-not-allowed" });
   const requestPath = decodeURIComponent((req.url || "/").split("?")[0]);

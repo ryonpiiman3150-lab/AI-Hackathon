@@ -6,13 +6,13 @@
   <meta name="theme-color" content="#f4f1ea" />
   <meta name="description" content="いつもの道から少し外れる、小さな寄り道。Routeoffのローカルモック。" />
   <title>Routeoff｜道から少し外れる、小さな寄り道</title>
-  <link rel="stylesheet" href="styles.css?v=19" />
+  <link rel="stylesheet" href="styles.css?v=20" />
 </head>
 <body>
   <section id="login-screen" class="login-screen" aria-labelledby="login-title">
     <div class="login-panel">
       <a class="brand login-brand" href="#login" aria-label="Routeoff"><img class="brand-logo" src="assets/routeoff-logo.png" alt=""></a>
-      <div class="login-heading"><h1 id="login-title">今日の景色を、<br><em>持ち帰ろう。</em></h1><p>これはチーム用のローカルデモです。記録はこの端末だけに保存され、気分や写真を選んだ時だけ、AIのお題・質問生成のため外部へ送信されます。</p></div>
+      <div class="login-heading"><h1 id="login-title">今日の景色を、<br><em>持ち帰ろう。</em></h1><p>これはチーム用のローカルデモです。記録はこの端末だけに保存され、今日の提案を求めた時、または送信内容を確認してAI利用を選んだ時だけ外部へ送信されます。</p></div>
       <form id="login-form" class="login-form">
         <label for="login-id">テストID<input id="login-id" name="id" autocomplete="username" required></label>
         <label for="login-password">パスワード<input id="login-password" name="password" type="password" autocomplete="current-password" required></label>
@@ -80,6 +80,7 @@
         <div class="screen-heading"><p class="kicker">MY ROUTE</p><h1 id="collection-title" tabindex="-1">My <em>Route</em></h1><p class="lead">持ち帰った一枚と、小さな寄り道の足跡。</p></div>
         <section id="my-route-today" class="my-route-today" aria-live="polite"></section>
         <article id="perspective-report" class="perspective-report"><p class="kicker">YOUR PERSPECTIVE <span id="weekly-source" class="mock-label">ルール</span></p><h2 id="perspective-title">視点は、これから。</h2><div id="perspective-body" class="perspective-lines"><p>採集がたまると、持ち帰りやすい視点をそっとお知らせします。</p></div><p id="perspective-note" class="report-note">本人が確かめた根拠と自分の言葉だけで振り返ります。</p><button id="refresh-weekly-ai" class="small-button weekly-ai-button" type="button" hidden>承認済みの根拠だけでAI更新</button><details id="weekly-receipt" class="process-receipt" hidden><summary>週次AIの処理レシート</summary><div data-receipt-body></div></details><section id="next-detour" class="next-detour" hidden aria-labelledby="next-detour-title"></section></article>
+        <section id="judge-panel" class="judge-panel" aria-labelledby="judge-panel-title" hidden><p class="kicker">AI PROCESS RECEIPTS <span class="mock-label">審査用</span></p><h2 id="judge-panel-title">AIは、使った分だけ見える。</h2><p class="judge-lead">用途・外部APIへの送信量・実測トークン・応答時間と、実測トークンに公開単価を掛けた推定コストを記録します。入力・出力本文は保存しません。</p><div class="judge-actions"><button id="run-cost-probe" class="button button-primary" type="button">固定文だけでAIを実測</button><button id="simulate-fallback" class="button button-quiet" type="button">通信失敗をテスト</button></div><p id="cost-probe-status" class="report-note" aria-live="polite">まだ審査用テストを実行していません。</p><div id="receipt-summary" class="receipt-summary" aria-live="polite"></div><div id="receipt-log" class="receipt-log"></div><details class="security-design"><summary>送信最小化とセキュリティ設計</summary><ul><li><strong>写真：</strong>送信前に最大1400pxのJPEGへ再描画し、位置情報などのメタデータを外す。元画像は送らない。</li><li><strong>プロフィール：</strong>既定では送らず、利用者がチェックした時だけ年代・立場・生活状態・傾向の4項目を送る。</li><li><strong>週次振り返り：</strong>本人が採用・修正した根拠と本人の言葉だけを送り、写真・名前・プロフィール・内部タグは送らない。</li><li><strong>秘密情報：</strong>APIキーはブラウザやGitへ渡さず、ローカルサーバーの <code>.env.local</code> だけで扱う。</li></ul></details></section>
         <div class="collection-toolbar"><h2>これまでの足跡 <span id="collection-count">0件</span></h2><button id="reset-data" class="text-button danger-button" type="button">すべてリセット</button></div><div id="collection-list" class="collection-list"></div><div id="collection-empty" class="empty-state" hidden><p>まだ足跡がありません。<br>今日の寄り道から始めてみませんか。</p><button class="small-button" data-screen-link="today" type="button">寄り道をはじめる</button></div>
       </div></section>
       <section class="screen" id="screen-feed" data-screen="feed" aria-labelledby="feed-title" hidden><div class="screen-inner">
@@ -103,6 +104,6 @@
   </div>
   <script src="mission-data.js?v=19"></script>
   <script src="community-feed-data.js?v=1"></script>
-  <script src="app.js?v=26"></script>
+  <script src="app.js?v=27"></script>
 </body>
 </html>
