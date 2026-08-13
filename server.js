@@ -86,7 +86,7 @@ async function reflect(payload) {
   if (!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(imageData)) throw new Error("invalid-image");
   const { mood, profile, recent } = contextFrom(payload);
   const prompt = [
-    "あなたは『日常採集』の穏やかな伴走者です。添付画像について、見えない事実・人物属性・場所・感情を断定しません。",
+    "あなたは『Routeoff』の穏やかな伴走者です。添付画像について、見えない事実・人物属性・場所・感情を断定しません。",
     "日本語で、写真から読み取れる色、光、形、配置、質感などを一つだけ肯定的にコメントし、その人自身の発見を促す質問を一つ返します。",
     "コメントは90文字以内、質問は60文字以内。評価・助言・命令・SNS風の煽り・絵文字は不要です。個人情報は繰り返さず、プロフィールは質問の距離感を調整する参考にだけ使ってください。",
     `いま得たい気分: ${mood || "未選択"}`,
@@ -101,7 +101,7 @@ async function reflect(payload) {
 async function mission(payload) {
   const { mood, profile, recent } = contextFrom(payload);
   const prompt = [
-    "あなたは『日常採集』の穏やかな伴走者です。利用者の気分と過去の採集に合わせ、5〜15分でできる小さな寄り道を一つ提案します。",
+    "あなたは『Routeoff』の穏やかな伴走者です。利用者の気分と過去の採集に合わせ、5〜15分でできる小さな寄り道を一つ提案します。",
     "プロフィールは距離感を調整する参考にだけ使い、個人情報や属性を回答内で繰り返しません。安全で、場所や人物を特定しない、評価や達成を求めない提案にしてください。",
     "屋外版と室内版は同じ視点を保ちます。質問は写真を撮った後に自分の発見を言葉にするための、断定しない一問です。",
     `いま得たい気分: ${mood || "未選択"}`,
@@ -149,6 +149,6 @@ server.on("error", (error) => {
 });
 server.listen(PORT, "127.0.0.1", () => {
   const url = `http://127.0.0.1:${PORT}`;
-  console.log(`日常採集: ${url}`);
+  console.log(`Routeoff: ${url}`);
   openBrowser(url);
 });

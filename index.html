@@ -4,14 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#f4f1ea" />
-  <meta name="description" content="いつもの一日に、小さな寄り道を。日常採集のローカルモック。" />
-  <title>日常採集｜小さな寄り道</title>
-  <link rel="stylesheet" href="styles.css?v=18" />
+  <meta name="description" content="いつもの道から少し外れる、小さな寄り道。Routeoffのローカルモック。" />
+  <title>Routeoff｜道から少し外れる、小さな寄り道</title>
+  <link rel="stylesheet" href="styles.css?v=19" />
 </head>
 <body>
   <section id="login-screen" class="login-screen" aria-labelledby="login-title">
     <div class="login-panel">
-      <a class="brand login-brand" href="#login" aria-label="日常採集"><span class="brand-mark" aria-hidden="true">日</span>日常<span class="brand-accent">採集</span></a>
+      <a class="brand login-brand" href="#login" aria-label="Routeoff"><img class="brand-logo" src="assets/routeoff-logo.png" alt=""></a>
       <div class="login-heading"><h1 id="login-title">今日の景色を、<br><em>持ち帰ろう。</em></h1><p>これはチーム用のローカルデモです。記録はこの端末だけに保存され、気分や写真を選んだ時だけ、AIのお題・質問生成のため外部へ送信されます。</p></div>
       <form id="login-form" class="login-form">
         <label for="login-id">テストID<input id="login-id" name="id" autocomplete="username" required></label>
@@ -24,7 +24,7 @@
   </section>
   <div id="app-shell" class="app-shell" hidden>
     <header class="topbar">
-      <a class="brand" href="#today" data-screen-link="today" aria-label="日常採集・今日へ"><span class="brand-mark" aria-hidden="true">日</span>日常<span class="brand-accent">採集</span></a>
+      <a class="brand" href="#collection" data-screen-link="collection" aria-label="Routeoff・My Routeへ"><img class="brand-logo" src="assets/routeoff-logo.png" alt=""></a>
       <div class="account-tools"><span class="privacy-note"><span aria-hidden="true">●</span> この端末だけに保存</span><button id="presentation-button" class="text-button" type="button">プレゼン</button><div class="user-menu"><button id="user-menu-button" class="user-button" type="button" aria-expanded="false" aria-controls="user-menu"><span id="current-user-initial" aria-hidden="true"></span><span id="current-user-name"></span></button><div id="user-menu" class="user-menu-popover" hidden><button id="open-profile" type="button">わたしの設定</button><button id="logout-button" type="button">ログアウト</button></div></div></div>
     </header>
     <main>
@@ -76,26 +76,31 @@
       </div></section>
 
       <section class="screen" id="screen-collection" data-screen="collection" aria-labelledby="collection-title" hidden><div class="screen-inner">
-        <div class="screen-heading"><p class="kicker">COLLECTION BOOK</p><h1 id="collection-title" tabindex="-1">採集帳</h1><p class="lead">持ち帰った一枚と、今日の余白。</p></div>
+        <div class="screen-heading"><p class="kicker">MY ROUTE</p><h1 id="collection-title" tabindex="-1">My <em>Route</em></h1><p class="lead">持ち帰った一枚と、小さな寄り道の足跡。</p></div>
+        <section id="my-route-today" class="my-route-today" aria-live="polite"></section>
         <article id="perspective-report" class="perspective-report"><p class="kicker">YOUR PERSPECTIVE <span class="mock-label">モック</span></p><h2 id="perspective-title">視点は、これから。</h2><p id="perspective-body">採集が3件たまると、持ち帰りやすい視点をそっとお知らせします。</p><p id="perspective-note" class="report-note">採集のお題と記録から作ったモックです。写真そのものは解析していません。</p></article>
-        <div class="collection-toolbar"><h2>あなたの採集 <span id="collection-count">0件</span></h2><button id="reset-data" class="text-button danger-button" type="button">すべてリセット</button></div><div id="collection-list" class="collection-list"></div><div id="collection-empty" class="empty-state" hidden><p>まだ採集した日がありません。<br>今日の寄り道から始めてみませんか。</p><button class="small-button" data-screen-link="today" type="button">今日へ戻る</button></div>
+        <div class="collection-toolbar"><h2>これまでの足跡 <span id="collection-count">0件</span></h2><button id="reset-data" class="text-button danger-button" type="button">すべてリセット</button></div><div id="collection-list" class="collection-list"></div><div id="collection-empty" class="empty-state" hidden><p>まだ足跡がありません。<br>今日の寄り道から始めてみませんか。</p><button class="small-button" data-screen-link="today" type="button">寄り道をはじめる</button></div>
       </div></section>
       <section class="screen" id="screen-feed" data-screen="feed" aria-labelledby="feed-title" hidden><div class="screen-inner">
-        <div class="screen-heading"><h1 id="feed-title" tabindex="-1">みんなの<br><em>採集。</em></h1><p id="feed-lead" class="lead"></p></div>
-        <div id="feed-list" class="feed-list"></div>
+        <div class="screen-heading"><p class="kicker">DISCOVER DETOURS</p><h1 id="feed-title" tabindex="-1"><em>みつける。</em></h1><p id="feed-lead" class="lead">気になった一枚から、その人の寄り道をのぞいてみよう。</p></div>
+        <div id="feed-list" class="feed-grid" aria-label="みんなの写真一覧"></div>
+      </div></section>
+      <section class="screen" id="screen-community-profile" data-screen="community-profile" aria-label="投稿者のホームページ" hidden><div class="screen-inner">
+        <button id="back-to-feed" class="back-button" type="button">← みつけるへ</button>
+        <div id="community-profile-content"></div>
       </div></section>
       <section class="screen" id="screen-profile" data-screen="profile" aria-labelledby="profile-title" hidden><div class="screen-inner">
         <button id="back-from-profile" class="back-button" type="button">← 今日へ戻る</button><div class="screen-heading"><p class="kicker">ABOUT YOU</p><h1 id="profile-title" tabindex="-1">あなたのことを、<br><em>少しだけ。</em></h1><p class="lead">すべて非公開です。設定すると、あなたの環境に沿った一枚を提案できます。</p></div>
         <form id="profile-form" class="profile-form"><label for="profile-name">呼ばれたい名前 <span>任意</span><input id="profile-name" name="displayName" maxlength="24" autocomplete="nickname" placeholder="たとえば、デモユーザー1"></label><fieldset><legend>年代 <span>任意</span></legend><div class="choice-options"><label><input type="radio" name="ageRange" value="10代以下"><span>10代以下</span></label><label><input type="radio" name="ageRange" value="20代"><span>20代</span></label><label><input type="radio" name="ageRange" value="30代"><span>30代</span></label><label><input type="radio" name="ageRange" value="40代"><span>40代</span></label><label><input type="radio" name="ageRange" value="50代以上"><span>50代以上</span></label></div></fieldset><fieldset><legend>いまの立場 <span>任意</span></legend><div class="choice-options three"><label><input type="radio" name="role" value="学生"><span>学生</span></label><label><input type="radio" name="role" value="社会人"><span>社会人</span></label><label><input type="radio" name="role" value="その他"><span>その他</span></label></div></fieldset><fieldset><legend>いまの生活の状態 <span>任意</span></legend><div class="choice-options"><label><input type="radio" name="lifeState" value="忙しい"><span>忙しい</span></label><label><input type="radio" name="lifeState" value="少し余白がある"><span>少し余白がある</span></label><label><input type="radio" name="lifeState" value="変化の途中"><span>変化の途中</span></label><label><input type="radio" name="lifeState" value="整えたい"><span>整えたい</span></label></div></fieldset><label for="profile-mbti">自分の傾向 <span>知っていれば任意</span><select id="profile-mbti" name="mbti"><option value="">選ばない</option><option>INTJ</option><option>INTP</option><option>ENTJ</option><option>ENTP</option><option>INFJ</option><option>INFP</option><option>ENFJ</option><option>ENFP</option><option>ISTJ</option><option>ISFJ</option><option>ESTJ</option><option>ESFJ</option><option>ISTP</option><option>ISFP</option><option>ESTP</option><option>ESFP</option></select></label><p class="profile-privacy">入力内容はこの端末にのみ保存され、みんなには表示されません。AIを使うときも、送信前に内容を確認できるようにします。</p><button class="button button-primary full-button" type="submit">設定を保存する</button><button id="skip-profile" class="text-button profile-skip" type="button">あとで設定する</button></form>
       </div></section>
     </main>
-    <nav class="bottom-nav" aria-label="メインナビゲーション"><button class="nav-item is-active" type="button" data-screen-link="today" aria-current="page"><span aria-hidden="true">○</span>今日</button><button class="nav-item" type="button" data-screen-link="feed"><span aria-hidden="true">●</span>みんな</button><button class="nav-item" type="button" data-screen-link="collection"><span aria-hidden="true">▱</span>採集帳</button></nav>
+    <nav class="bottom-nav" aria-label="メインナビゲーション"><button class="nav-item is-active" type="button" data-screen-link="today" aria-current="page"><span aria-hidden="true">○</span>寄り道</button><button class="nav-item" type="button" data-screen-link="feed"><span aria-hidden="true">●</span>みつける</button><button class="nav-item" type="button" data-screen-link="collection"><span aria-hidden="true">▱</span>My Route</button></nav>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <aside id="presentation-guide" class="presentation-guide" hidden aria-live="polite"><p id="presentation-step"></p><h2 id="presentation-title"></h2><p id="presentation-copy"></p><div><button id="presentation-next" class="button button-primary" type="button">次へ</button><button id="presentation-close" class="text-button" type="button">終了</button></div></aside>
     <dialog id="confirm-dialog" aria-labelledby="confirm-title"><h2 id="confirm-title">確認</h2><p id="confirm-body"></p><div class="dialog-actions"><button id="confirm-cancel" class="button button-quiet" type="button">やめる</button><button id="confirm-accept" class="button button-primary" type="button">続ける</button></div></dialog>
   </div>
   <script src="mission-data.js?v=19"></script>
   <script src="community-feed-data.js?v=1"></script>
-  <script src="app.js?v=21"></script>
+  <script src="app.js?v=23"></script>
 </body>
 </html>
