@@ -5,7 +5,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 
-const { WEEKLY_TEMPERATURE, assertNaturalWeeklyCopy, buildWeeklyPrompt } = require("../weekly-reflection");
+const { WEEKLY_TEMPERATURE, buildWeeklyPrompt, validateWeeklyReport } = require("../weekly-reflection");
 
 const ROOT = path.join(__dirname, "..");
 
@@ -27,7 +27,8 @@ test("週次プロンプトは3行の役割と自然な文体を明示する", (
 
 test("入力の丸写しや曖昧な定型句をAI結果として採用しない", () => {
   const entries = [
-    { answer: "葉の重なりに、小さな季節を見つけた。", observations: ["葉が重なっている。"] }
+    { id: "2026-08-13", answer: "葉の重なりに、小さな季節を見つけた。", observations: ["葉が重なっている。"] },
+    { id: "2026-08-12", answer: "足元の影で立ち止まった。", observations: ["地面に影がある。"] }
   ];
   const unnatural = {
     lines: [
@@ -35,7 +36,7 @@ test("入力の丸写しや曖昧な定型句をAI結果として採用しない
       { text: "足元の影が、時間をゆっくりにしてくれた。" },
       { text: "窓の外の静けさを、一枚に残しておく。" }
     ],
-    nextDetour: { title: "新しい視点での散歩", reason: "新しい視点は、新たな発見をもたらすかもしれません。", instruction: "歩く。", indoorInstruction: "見る。", question: "何が見えましたか？" }
+    nextDetour: { title: "新しい視点での散歩", reason: "新しい視点は、新たな発見をもたらすかもしれません。", instruction: "歩く。", indoorInstruction: "見る。", question: "何が見えましたか？", sourceIds: ["2026-08-13"] }
   };
   const natural = {
     lines: [
@@ -43,11 +44,16 @@ test("入力の丸写しや曖昧な定型句をAI結果として採用しない
       { text: "足元や窓の外で立ち止まった記録が残っています。" },
       { text: "写真と一緒に、そのとき気づいたことも書けています。" }
     ],
-    nextDetour: { title: "目線を下げて歩く", reason: "足元を写した記録があったので、次は高さを変えて見てみます。", instruction: "5分歩き、低い位置から一枚撮る。", indoorInstruction: "座った高さから一枚撮る。", question: "高さを変えると何が見えましたか？" }
+    nextDetour: { title: "目線を下げて歩く", reason: "足元を写した記録があったので、次は高さを変えて見てみます。", instruction: "5分歩き、低い位置から一枚撮る。", indoorInstruction: "5分間、座った高さから一枚撮る。", question: "高さを変えると何が見えましたか？", sourceIds: ["2026-08-12"] }
+  };
+  const vagueDetour = {
+    ...natural,
+    nextDetour: { ...natural.nextDetour, reason: "今週の記録を踏まえました。", instruction: "外を見る。", indoorInstruction: "部屋を見る。" }
   };
 
-  assert.throws(() => assertNaturalWeeklyCopy(unnatural, entries), /unnatural-weekly-copy/);
-  assert.doesNotThrow(() => assertNaturalWeeklyCopy(natural, entries));
+  assert.throws(() => validateWeeklyReport(unnatural, entries), /unnatural-weekly-copy/);
+  assert.throws(() => validateWeeklyReport(vagueDetour, entries), /invalid-weekly-detour/);
+  assert.doesNotThrow(() => validateWeeklyReport(natural, entries));
 });
 
 test("My Routeの通常画面は技術用語より利用者の言葉を使う", () => {
@@ -61,6 +67,9 @@ test("My Routeの通常画面は技術用語より利用者の言葉を使う", 
   for (const newCopy of ["もとになった記録", "AIで今週をまとめる", "AI利用情報", "このお題で寄り道する"]) {
     assert.match(copy, new RegExp(newCopy));
   }
+  assert.match(app, /今週は、\$\{label\}に目を向けた写真が\$\{taggedEntries\.length\}枚ありました/);
+  assert.match(app, /\$\{wordEntries\.length\}枚に、そのとき気づいたことを書いています/);
+  assert.doesNotMatch(app, /この1週間は、\$\{entries\.length\}枚の写真を残しました/);
   assert.match(app, /WEEKLY_COPY_VERSION/);
   assert.match(app, /weeklyFingerprint\(entries\).*WEEKLY_COPY_VERSION/);
 });

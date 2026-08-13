@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
 const { execFile } = require("node:child_process");
-const { WEEKLY_TEMPERATURE, assertNaturalWeeklyCopy, buildWeeklyPrompt } = require("./weekly-reflection");
+const { WEEKLY_TEMPERATURE, buildWeeklyPrompt, validateWeeklyReport } = require("./weekly-reflection");
 
 const ROOT = __dirname;
 const PORT = Number(process.env.PORT || 8000);
@@ -142,7 +142,7 @@ function contextFrom(payload) {
   return { mood: string(payload.mood, 40), profile, recent };
 }
 
-async function chat(prompt, imageData, maxTokens = 180, purpose = "ai", requestBytes = 0, imageBytes = 0, temperature = 0.7) {
+async function chat(prompt, { imageData = null, maxTokens = 180, purpose = "ai", requestBytes = 0, imageBytes = 0, temperature = 0.7 } = {}) {
   const startedAt = Date.now();
   const apiKey = process.env.ORCAROUTER_API_KEY;
   const requestedModel = process.env.ORCAROUTER_MODEL || DEFAULT_MODEL;
@@ -187,7 +187,7 @@ async function reflect(payload, requestBytes = 0) {
     `最近の採集（最大7件）: ${JSON.stringify(recent)}`,
     '必ず次のJSONだけを返してください: {"observations":["見えている事実1","見えている事実2"],"comment":"...","question":"..."}'
   ].join("\n");
-  const result = await chat(prompt, imageData, 180, "photo-reflection", requestBytes, Math.floor((imageData.split(",")[1]?.length || 0) * 0.75));
+  const result = await chat(prompt, { imageData, maxTokens: 180, purpose: "photo-reflection", requestBytes, imageBytes: Math.floor((imageData.split(",")[1]?.length || 0) * 0.75) });
   return { ...extractJson(result.content), model: result.model, receipt: result.receipt };
 }
 
@@ -202,7 +202,7 @@ async function mission(payload, requestBytes = 0) {
     `最近の採集（最大7件）: ${JSON.stringify(recent)}`,
     '必ず次のJSONだけを返してください: {"title":"...","instruction":"...","indoorInstruction":"...","question":"..."}'
   ].join("\n");
-  const result = await chat(prompt, null, 260, "daily-mission", requestBytes, 0);
+  const result = await chat(prompt, { maxTokens: 260, purpose: "daily-mission", requestBytes });
   return { ...extractMission(result.content), model: result.model, receipt: result.receipt };
 }
 
@@ -216,8 +216,8 @@ async function weeklyReflection(payload, requestBytes = 0) {
   const allowedIds = new Set(entries.map((entry) => entry.id));
   if (!entries.length) throw new Error("weekly-evidence-missing");
   const prompt = buildWeeklyPrompt(entries);
-  const result = await chat(prompt, null, 520, "weekly-reflection", requestBytes, 0, WEEKLY_TEMPERATURE);
-  const report = assertNaturalWeeklyCopy(extractWeekly(result.content, allowedIds), entries);
+  const result = await chat(prompt, { maxTokens: 520, purpose: "weekly-reflection", requestBytes, temperature: WEEKLY_TEMPERATURE });
+  const report = validateWeeklyReport(extractWeekly(result.content, allowedIds), entries);
   return { ...report, model: result.model, receipt: result.receipt };
 }
 
@@ -233,7 +233,7 @@ async function costProbe(payload, requestBytes = 0) {
     "これはRouteoffのコスト計測用の固定テストです。利用者の写真、記録、プロフィール、名前は含まれていません。",
     "必ず次のJSONだけを返してください: {\"ok\":true}"
   ].join("\n");
-  const result = await chat(prompt, null, 40, "cost-probe", requestBytes, 0);
+  const result = await chat(prompt, { maxTokens: 40, purpose: "cost-probe", requestBytes });
   return { ok: true, model: result.model, receipt: result.receipt };
 }
 
