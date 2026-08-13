@@ -109,6 +109,26 @@ function extractMission(content) {
   return { title, instruction, indoorInstruction, question };
 }
 
+function extractWeekly(content, allowedIds) {
+  const text = typeof content === "string" ? content : "";
+  const candidate = text.match(/\{[\s\S]*\}/)?.[0] || text;
+  const parsed = JSON.parse(candidate);
+  const lines = Array.isArray(parsed.lines) ? parsed.lines.slice(0, 3).map((line) => ({
+    text: string(line?.text, 140),
+    evidenceIds: Array.isArray(line?.evidenceIds) ? [...new Set(line.evidenceIds.map((id) => string(id, 40)).filter((id) => allowedIds.has(id)))].slice(0, 3) : []
+  })).filter((line) => line.text && line.evidenceIds.length) : [];
+  const next = parsed.nextDetour && typeof parsed.nextDetour === "object" ? {
+    title: string(parsed.nextDetour.title, 40),
+    instruction: string(parsed.nextDetour.instruction, 140),
+    indoorInstruction: string(parsed.nextDetour.indoorInstruction, 140),
+    question: string(parsed.nextDetour.question, 120),
+    reason: string(parsed.nextDetour.reason, 160),
+    sourceIds: Array.isArray(parsed.nextDetour.sourceIds) ? [...new Set(parsed.nextDetour.sourceIds.map((id) => string(id, 40)).filter((id) => allowedIds.has(id)))].slice(0, 3) : []
+  } : {};
+  if (lines.length !== 3 || !next.title || !next.instruction || !next.indoorInstruction || !next.question || !next.reason || !next.sourceIds?.length) throw new Error("invalid-model-response");
+  return { lines, nextDetour: next };
+}
+
 function contextFrom(payload) {
   const profile = payload.profile && typeof payload.profile === "object" ? {
     ageRange: string(payload.profile.ageRange, 20), role: string(payload.profile.role, 20), lifeState: string(payload.profile.lifeState, 30), mbti: string(payload.profile.mbti, 8)
@@ -179,6 +199,26 @@ async function mission(payload, requestBytes = 0) {
   return { ...extractMission(result.content), model: result.model, receipt: result.receipt };
 }
 
+async function weeklyReflection(payload, requestBytes = 0) {
+  const entries = Array.isArray(payload.entries) ? payload.entries.slice(0, 7).map((entry) => ({
+    id: string(entry?.id, 40),
+    dateKey: string(entry?.dateKey, 10),
+    answer: string(entry?.answer, 120),
+    observations: Array.isArray(entry?.observations) ? entry.observations.map((value) => string(value, 90)).filter(Boolean).slice(0, 3) : []
+  })).filter((entry) => entry.id && (entry.answer || entry.observations.length)) : [];
+  const allowedIds = new Set(entries.map((entry) => entry.id));
+  if (!entries.length) throw new Error("weekly-evidence-missing");
+  const prompt = [
+    "あなたは『Routeoff』の週次編集者です。利用者が承認または修正した写真の根拠と、本人の言葉だけを使います。",
+    "感情、場所、人物属性、出来事、因果関係を推測しません。肯定的で穏やかな3行にし、それぞれに根拠となる入力IDを必ず付けます。",
+    "振り返りを踏まえ、これまでと少し異なる見方を試す5〜15分の寄り道を一つ提案します。次の寄り道にも理由と根拠IDを付けます。",
+    `承認済み記録: ${JSON.stringify(entries)}`,
+    '必ず次のJSONだけを返してください: {"lines":[{"text":"...","evidenceIds":["id"]},{"text":"...","evidenceIds":["id"]},{"text":"...","evidenceIds":["id"]}],"nextDetour":{"title":"...","instruction":"...","indoorInstruction":"...","question":"...","reason":"...","sourceIds":["id"]}}'
+  ].join("\n");
+  const result = await chat(prompt, null, 520, "weekly-reflection", requestBytes, 0);
+  return { ...extractWeekly(result.content, allowedIds), model: result.model, receipt: result.receipt };
+}
+
 loadLocalEnv();
 const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && req.url === "/api/health") return sendJson(res, 200, { configured: Boolean(process.env.ORCAROUTER_API_KEY) });
@@ -189,6 +229,10 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "POST" && req.url === "/api/mission") {
     try { const raw = await readBody(req); return sendJson(res, 200, await mission(JSON.parse(raw), Buffer.byteLength(raw))); }
     catch (error) { return sendJson(res, error.status || 400, { error: error.message === "not-configured" ? "AI接続はまだ設定されていません。" : "AIから今日のお題を受け取れませんでした。", receipt: error.receipt }); }
+  }
+  if (req.method === "POST" && req.url === "/api/weekly-reflection") {
+    try { const raw = await readBody(req); return sendJson(res, 200, await weeklyReflection(JSON.parse(raw), Buffer.byteLength(raw))); }
+    catch (error) { return sendJson(res, error.status || 400, { error: error.message === "not-configured" ? "AI接続はまだ設定されていません。" : "週の振り返りを更新できませんでした。", receipt: error.receipt }); }
   }
   if (req.method !== "GET" && req.method !== "HEAD") return sendJson(res, 405, { error: "method-not-allowed" });
   const requestPath = decodeURIComponent((req.url || "/").split("?")[0]);

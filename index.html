@@ -49,7 +49,7 @@
 
           <section id="proposal-step" class="step-panel" hidden aria-labelledby="proposal-heading">
             <p class="kicker">TODAY'S DETOUR <span id="proposal-source" class="mock-label">固定</span></p><h2 id="proposal-heading" tabindex="-1">今日の寄り道</h2><p id="mission-ai-status" class="ai-status" aria-live="polite" hidden></p><details id="mission-receipt" class="process-receipt" hidden><summary>AI処理レシート</summary><div data-receipt-body></div></details>
-            <article class="mission-card" aria-live="polite"><div class="mission-meta"><span id="proposal-mood"></span><span id="mission-duration"></span></div><h3 id="mission-title"></h3><p id="mission-instruction"></p><p class="mission-mode" id="mission-mode"></p></article>
+            <article class="mission-card" aria-live="polite"><div class="mission-meta"><span id="proposal-mood"></span><span id="mission-duration"></span></div><h3 id="mission-title"></h3><p id="mission-instruction"></p><p id="mission-reason" class="mission-reason" hidden></p><p class="mission-mode" id="mission-mode"></p></article>
             <div class="proposal-actions"><button id="start-mission" class="button button-primary" type="button">この寄り道をはじめる <span aria-hidden="true">→</span></button><button id="toggle-indoor" class="button button-quiet" type="button">室内版を見る</button><button id="choose-new-mission" class="text-button" type="button">別の提案にする</button></div>
             <button id="save-blank" class="blank-link" type="button">今日は余白にする</button>
           </section>
@@ -79,7 +79,7 @@
       <section class="screen" id="screen-collection" data-screen="collection" aria-labelledby="collection-title" hidden><div class="screen-inner">
         <div class="screen-heading"><p class="kicker">MY ROUTE</p><h1 id="collection-title" tabindex="-1">My <em>Route</em></h1><p class="lead">持ち帰った一枚と、小さな寄り道の足跡。</p></div>
         <section id="my-route-today" class="my-route-today" aria-live="polite"></section>
-        <article id="perspective-report" class="perspective-report"><p class="kicker">YOUR PERSPECTIVE <span class="mock-label">モック</span></p><h2 id="perspective-title">視点は、これから。</h2><p id="perspective-body">採集が3件たまると、持ち帰りやすい視点をそっとお知らせします。</p><p id="perspective-note" class="report-note">採集のお題と記録から作ったモックです。写真そのものは解析していません。</p></article>
+        <article id="perspective-report" class="perspective-report"><p class="kicker">YOUR PERSPECTIVE <span id="weekly-source" class="mock-label">ルール</span></p><h2 id="perspective-title">視点は、これから。</h2><div id="perspective-body" class="perspective-lines"><p>採集がたまると、持ち帰りやすい視点をそっとお知らせします。</p></div><p id="perspective-note" class="report-note">本人が確かめた根拠と自分の言葉だけで振り返ります。</p><button id="refresh-weekly-ai" class="small-button weekly-ai-button" type="button" hidden>承認済みの根拠だけでAI更新</button><details id="weekly-receipt" class="process-receipt" hidden><summary>週次AIの処理レシート</summary><div data-receipt-body></div></details><section id="next-detour" class="next-detour" hidden aria-labelledby="next-detour-title"></section></article>
         <div class="collection-toolbar"><h2>これまでの足跡 <span id="collection-count">0件</span></h2><button id="reset-data" class="text-button danger-button" type="button">すべてリセット</button></div><div id="collection-list" class="collection-list"></div><div id="collection-empty" class="empty-state" hidden><p>まだ足跡がありません。<br>今日の寄り道から始めてみませんか。</p><button class="small-button" data-screen-link="today" type="button">寄り道をはじめる</button></div>
       </div></section>
       <section class="screen" id="screen-feed" data-screen="feed" aria-labelledby="feed-title" hidden><div class="screen-inner">
@@ -99,9 +99,10 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <aside id="presentation-guide" class="presentation-guide" hidden aria-live="polite"><p id="presentation-step"></p><h2 id="presentation-title"></h2><p id="presentation-copy"></p><div><button id="presentation-next" class="button button-primary" type="button">次へ</button><button id="presentation-close" class="text-button" type="button">終了</button></div></aside>
     <dialog id="confirm-dialog" aria-labelledby="confirm-title"><h2 id="confirm-title">確認</h2><p id="confirm-body"></p><div class="dialog-actions"><button id="confirm-cancel" class="button button-quiet" type="button">やめる</button><button id="confirm-accept" class="button button-primary" type="button">続ける</button></div></dialog>
+    <dialog id="evidence-dialog" aria-labelledby="evidence-title"><h2 id="evidence-title">この振り返りの根拠</h2><div id="evidence-body"></div><div class="dialog-actions"><button id="evidence-close" class="button button-primary" type="button">閉じる</button></div></dialog>
   </div>
   <script src="mission-data.js?v=19"></script>
   <script src="community-feed-data.js?v=1"></script>
-  <script src="app.js?v=25"></script>
+  <script src="app.js?v=26"></script>
 </body>
 </html>

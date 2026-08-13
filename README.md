@@ -19,6 +19,7 @@
 | プレゼンモード | 完了 | 暫定ログの再生成と4段階のデモ案内 |
 | AI送信・処理レシート | 完了 | [#23](https://github.com/ryonpiiman3150-lab/AI-Hackathon/issues/23) 送信前確認、画像の再エンコード、実測token・応答時間・推定コスト・フォールバックの表示 |
 | 写真の根拠承認 | 完了 | [#24](https://github.com/ryonpiiman3150-lab/AI-Hackathon/issues/24) AIが抽出した観察可能な根拠候補を、採用・修正・非表示してから保存 |
+| 根拠付きの週次ループ | 完了 | [#25](https://github.com/ryonpiiman3150-lab/AI-Hackathon/issues/25) 直近7日分を3行で振り返り、元の記録を確認して次の寄り道へつなぐ |
 | AIパーソナル提案 | 完了 | [#10](https://github.com/ryonpiiman3150-lab/AI-Hackathon/issues/10) 写真選択時の自動質問、[#11](https://github.com/ryonpiiman3150-lab/AI-Hackathon/issues/11) 気分選択時のお題提案。プロフィールと過去ログを文脈に利用 |
 | 外部共有 | 完了 | 採集カードの画像保存・OS標準共有・投稿文コピー。X / Instagramへの直接投稿は対象外 |
 | インフラ移行 | 判断済み | 外部公開またはAI接続時に OCI へ段階移行。詳細は [インフラ方針](./インフラ方針_2026-08-12.md) |
