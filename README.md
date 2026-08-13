@@ -34,9 +34,58 @@
 - 実装と確認が終わったら、Issueへ結果を記録してクローズする。
 - この表は、機能が完了・中止・優先変更になった節目に更新する。
 
-## 起動方法
+## 他のPCでローカルに動かす
 
-各PCでこのリポジトリのフォルダ一式をコピーし、[Node.js 20 LTS](https://nodejs.org/) を入れてください。通常の体験だけならキーは不要です。起動したPC以外からはアクセスできず、写真・下書き・採集記録はそのPCのブラウザ内にだけ保存されます。
+これはクラウド版ではありません。各利用者が自分のPCへこのリポジトリ一式をコピー（またはGitでclone）し、ローカルサーバーを起動して使います。起動したPC以外からはアクセスできず、写真・下書き・採集記録はそのPCのブラウザ内にだけ保存されます。端末間で記録・プロフィール・ログイン状態は同期されません。
+
+### 1. 準備するもの
+
+1. このリポジトリのフォルダ一式（`assets/` を含む）
+2. [Node.js 20 LTS 以上](https://nodejs.org/)
+3. AIの個別提案を使う場合だけ、**その利用者自身のOrcaRouter APIキー**
+
+Node.jsを入れた後、ターミナルまたはPowerShellで次を実行し、バージョンが `v20` 以上であることを確認します。
+
+```bash
+node --version
+```
+
+### 2. OrcaRouterを使わない場合
+
+APIキーなしでも、固定のお題・固定の一問・写真記録・採集帳・みんなのデモ投稿は利用できます。この場合は次のOS別手順で起動するだけです。
+
+### 3. OrcaRouterを使う場合（PCごと・利用者ごとに設定）
+
+OrcaRouterのキーは共有キーとして配布せず、**利用者ごとに自分のアカウントで発行し、自分のPCだけへ設定**してください。キーの利用量・請求・失効はキー所有者のアカウントに紐づきます。
+
+1. [OrcaRouter Console のAPIキー画面](https://www.orcarouter.ai/console/keys)でアカウントにログインし、個人用APIキーを発行します。キーは `sk-orca-...` の形式です。
+2. このプロジェクトのルートで、ひな形から `.env.local` を作ります。
+
+Mac / Linux:
+
+```bash
+cp .env.example .env.local
+```
+
+Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env.local
+```
+
+3. `.env.local` をテキストエディタで開き、`ORCAROUTER_API_KEY=` の右側へ自分のキーだけを貼り付けます。
+
+```dotenv
+ORCAROUTER_API_KEY=sk-orca-自分のキー
+ORCAROUTER_BASE_URL=https://api.orcarouter.ai/v1
+ORCAROUTER_MODEL=openai/gpt-4o-mini
+```
+
+4. 保存後、アプリをいったん終了してからもう一度起動します。`http://127.0.0.1:8000/api/health` を開き、`{"configured":true}` と表示されれば設定を読み込めています。
+
+`.env.local` はGit管理外です。メール、Slack、チャット、スクリーンショット、共有フォルダへキーを載せないでください。誤って共有した場合は、OrcaRouter Consoleでただちにそのキーを失効・再発行してください。OrcaRouterはOpenAI互換の `https://api.orcarouter.ai/v1` を使うため、本アプリではキーをブラウザへ渡さず、ローカルの `server.js` だけが読み込みます。[公式ドキュメント](https://docs.orcarouter.ai/introduction)
+
+## 起動方法
 
 ### Mac
 
@@ -74,7 +123,7 @@ Windows PowerShellでは次を使います。
 $env:PORT=8001; npm start
 ```
 
-AI一問インタビューを使うときだけ、[.env.example](./.env.example) を `.env.local` にコピーし、発行済みの `ORCAROUTER_API_KEY` を設定します。`.env.local` はそのPCだけに置き、Gitや他人へ共有しません。キーが未設定でも、固定のお題でアプリを最後まで利用できます。
+キーが未設定の場合やAI接続に失敗した場合も、固定のお題と一問に自動で切り替わるため、アプリはそのまま利用できます。
 
 ## 確認できること
 
