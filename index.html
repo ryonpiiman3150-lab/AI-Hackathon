@@ -2,6 +2,8 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
+  <!-- 外部リソースを一切読み込まない構成のため、同一オリジンだけに限定する。blob: は写真プレビューのobjectURL用。 -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#f4f1ea" />
   <meta name="description" content="いつもの道から少し外れる、小さな寄り道。Routeoffのローカルモック。" />
@@ -104,6 +106,6 @@
   </div>
   <script src="mission-data.js?v=19"></script>
   <script src="community-feed-data.js?v=1"></script>
-  <script src="app.js?v=28"></script>
+  <script src="app.js?v=29"></script>
 </body>
 </html>
