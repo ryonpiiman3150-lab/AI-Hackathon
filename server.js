@@ -8,6 +8,9 @@ const { WEEKLY_TEMPERATURE, buildWeeklyPrompt, validateWeeklyReport } = require(
 
 const ROOT = __dirname;
 const PORT = Number(process.env.PORT || 8000);
+// このサーバーは127.0.0.1にしか待ち受けないが、DNSリバインディングでは外部ページが
+// 自分のドメイン名のまま127.0.0.1へ到達できる。Hostヘッダを検証して、そのアクセスを拒否する。
+const ALLOWED_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"].flatMap((host) => [`${host}:${PORT}`, ...(PORT === 80 ? [host] : [])]));
 const MAX_BODY_BYTES = 5 * 1024 * 1024;
 const MIME_TYPES = { ".css": "text/css; charset=utf-8", ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".json": "application/json; charset=utf-8", ".png": "image/png" };
 const DEFAULT_MODEL = "openai/gpt-4o-mini";
@@ -241,6 +244,7 @@ async function costProbe(payload, requestBytes = 0) {
 
 loadLocalEnv();
 const server = http.createServer(async (req, res) => {
+  if (!ALLOWED_HOSTS.has(String(req.headers.host || "").toLowerCase())) return sendJson(res, 403, { error: "invalid-host" });
   if (req.method === "GET" && req.url === "/api/health") return sendJson(res, 200, { configured: Boolean(process.env.ORCAROUTER_API_KEY) });
   if (req.method === "POST" && req.url === "/api/reflection") {
     try { const raw = await readBody(req); return sendJson(res, 200, await reflect(JSON.parse(raw), Buffer.byteLength(raw))); }
@@ -261,8 +265,10 @@ const server = http.createServer(async (req, res) => {
   if (req.method !== "GET" && req.method !== "HEAD") return sendJson(res, 405, { error: "method-not-allowed" });
   const requestPath = decodeURIComponent((req.url || "/").split("?")[0]);
   const filePath = path.resolve(ROOT, `.${requestPath === "/" ? "/index.html" : requestPath}`);
-  if (!filePath.startsWith(`${ROOT}${path.sep}`) || path.basename(filePath).startsWith(".") || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) return sendJson(res, 404, { error: "not-found" });
-  res.writeHead(200, { "Content-Type": MIME_TYPES[path.extname(filePath)] || "application/octet-stream", "Cache-Control": "no-store" });
+  const hidden = path.relative(ROOT, filePath).split(path.sep).some((segment) => segment.startsWith("."));
+  const mimeType = MIME_TYPES[path.extname(filePath)];
+  if (!filePath.startsWith(`${ROOT}${path.sep}`) || hidden || !mimeType || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) return sendJson(res, 404, { error: "not-found" });
+  res.writeHead(200, { "Content-Type": mimeType, "Cache-Control": "no-store" });
   if (req.method === "HEAD") return res.end();
   fs.createReadStream(filePath).pipe(res);
 });
