@@ -3,8 +3,8 @@
 
   const DB_NAME = "nichijo-shusai", DB_VERSION = 3, LEGACY_KEY = "nichijo-shusai-cards-v1", SESSION_KEY = "nichijo-shusai-session-v1", WEEKLY_COPY_VERSION = "natural-ja-v1";
   const TEST_USERS = [
-    { id: "demo-user-2", password: "demo-user-2", name: "デモユーザー2" },
-    { id: "demo-user-1", password: "demo-user-1", name: "デモユーザー1" }
+    { id: "demo-user-1", password: "demo-user-1", name: "デモユーザー1" },
+    { id: "demo-user-2", password: "demo-user-2", name: "デモユーザー2" }
   ];
   const PRESENTATION_USER = { id: "presentation", name: "審査デモ" };
   const MOOD_NEIGHBORS = { calm: ["refresh", "surprise"], refresh: ["calm", "adventure"], adventure: ["refresh", "surprise"], surprise: ["calm", "adventure"] };
