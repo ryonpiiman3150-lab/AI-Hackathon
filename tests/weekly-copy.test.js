@@ -90,3 +90,15 @@ test("My Routeの通常画面は技術用語より利用者の言葉を使う", 
   assert.match(app, /WEEKLY_COPY_VERSION/);
   assert.match(app, /weeklyFingerprint\(entries\).*WEEKLY_COPY_VERSION/);
 });
+
+test("旧称の採集帳をMy Routeへ統一している", () => {
+  const app = fs.readFileSync(path.join(ROOT, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const copy = `${app}\n${html}`;
+
+  assert.doesNotMatch(copy, /採集帳/);
+  assert.match(html, /My Routeに保存する/);
+  assert.match(app, /My Routeに保存しました/);
+  assert.match(app, /My Routeをすべてリセットしますか/);
+  assert.match(app, /My Routeをリセットしました/);
+});
