@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
 const { execFile } = require("node:child_process");
-const { WEEKLY_TEMPERATURE, buildWeeklyPrompt, validateWeeklyReport } = require("./weekly-reflection");
+const { WEEKLY_TEMPERATURE, buildWeeklyPrompt, ensureWeeklyDuration, validateWeeklyReport } = require("./weekly-reflection");
 
 const ROOT = __dirname;
 const PORT = Number(process.env.PORT || 8000);
@@ -221,7 +221,10 @@ async function weeklyReflection(payload, requestBytes = 0) {
   if (!entries.length) throw new Error("weekly-evidence-missing");
   const prompt = buildWeeklyPrompt(entries);
   const result = await chat(prompt, { maxTokens: 520, purpose: "weekly-reflection", requestBytes, temperature: WEEKLY_TEMPERATURE });
-  const validated = validateWeeklyReport(extractWeekly(result.content, allowedIds), entries);
+  const extracted = extractWeekly(result.content, allowedIds);
+  extracted.nextDetour.instruction = ensureWeeklyDuration(extracted.nextDetour.instruction);
+  extracted.nextDetour.indoorInstruction = ensureWeeklyDuration(extracted.nextDetour.indoorInstruction);
+  const validated = validateWeeklyReport(extracted, entries);
   const report = { ...validated, lines: validated.lines.map(({ role, ...line }) => line) };
   return { ...report, model: result.model, receipt: result.receipt };
 }

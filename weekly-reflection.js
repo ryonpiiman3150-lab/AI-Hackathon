@@ -24,6 +24,12 @@ function minutesIn(text) {
   return [...normalized.matchAll(/(\d{1,2})\s*分/g)].map((match) => Number(match[1]));
 }
 
+function ensureWeeklyDuration(text) {
+  // 所要時間の指定がないだけなら、週次導線の約束どおり10分の小さな寄り道として補う。
+  // 20分など範囲外の時間が明記されている場合は、呼び出し元の検証で却下する。
+  return minutesIn(text).length ? String(text || "") : `${String(text || "").trim()}（10分）`;
+}
+
 function concreteEvidenceTerms(entries) {
   const terms = (entries || []).flatMap((entry) => [entry?.answer, ...(entry?.observations || [])]).flatMap((text) => String(text || "").match(/[\p{Script=Han}\p{Script=Katakana}ー]+/gu) || []);
   return [...new Set(terms.filter((term) => !GENERIC_EVIDENCE_TERMS.has(term) && (term.length > 1 || !GENERIC_SINGLE_KANJI.has(term))))];
@@ -46,10 +52,9 @@ function validateWeeklyReport(report, entries) {
   };
   const trendMentionsEvidence = concreteEvidenceTerms(entriesForLine(report.lines[0])).some((term) => lineTexts[0].includes(term));
   const actionMentionsEvidence = concreteEvidenceTerms(entriesForLine(report.lines[1])).some((term) => lineTexts[1].includes(term));
-  const describesTrend = /(多|よく|重な|続い|目を向け|目が向|増え|共通|枚)/.test(lineTexts[0]) && trendMentionsEvidence;
-  const describesAction = /(立ち止|書|残|撮|歩|見上|しゃが|座|曲が|遠回り|選|比べ|探|気づ|向け|写|眺め|見つけ|見て|見た)/.test(lineTexts[1]) && actionMentionsEvidence;
-  const givesGroundedPraise = /(でき|残せ|書け|振り返れ|気づけ|立ち止まれ|見つけられ|向けられ|続けられ)(ています|ました)/.test(lineTexts[2]);
-  if (!hasExpectedRoles || !trendUsesMultipleRecords || !describesTrend || !describesAction || !givesGroundedPraise) throw new Error("invalid-weekly-lines");
+  // モデルごとの自然な言い回しを、決め打ちの動詞や語尾で拒否しない。
+  // 傾向と具体行動が、それぞれ引用元の具体語を含むことだけを必須にする。
+  if (!hasExpectedRoles || !trendUsesMultipleRecords || !trendMentionsEvidence || !actionMentionsEvidence) throw new Error("invalid-weekly-lines");
   const next = report?.nextDetour || {};
   const instructionMinutes = [next.instruction, next.indoorInstruction].map(minutesIn);
   const hasValidDuration = instructionMinutes.every((values) => values.length && values.every((minutes) => minutes >= 5 && minutes <= 15));
@@ -74,4 +79,4 @@ function buildWeeklyPrompt(entries) {
   ].join("\n");
 }
 
-module.exports = { WEEKLY_TEMPERATURE, buildWeeklyPrompt, validateWeeklyReport };
+module.exports = { WEEKLY_TEMPERATURE, buildWeeklyPrompt, ensureWeeklyDuration, validateWeeklyReport };

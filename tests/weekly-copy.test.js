@@ -5,7 +5,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 
-const { WEEKLY_TEMPERATURE, buildWeeklyPrompt, validateWeeklyReport } = require("../weekly-reflection");
+const { WEEKLY_TEMPERATURE, buildWeeklyPrompt, ensureWeeklyDuration, validateWeeklyReport } = require("../weekly-reflection");
 
 const ROOT = path.join(__dirname, "..");
 
@@ -26,6 +26,12 @@ test("週次プロンプトは3行の役割と自然な文体を明示する", (
   assert.match(prompt, /5〜15分で実行できる具体的な行動/);
   assert.match(prompt, /理由は今週の記録と直接結び付け/);
   assert.equal(WEEKLY_TEMPERATURE, 0.3);
+});
+
+test("週次の次の寄り道は、AIが所要時間を省略した場合だけ10分を補う", () => {
+  assert.equal(ensureWeeklyDuration("周囲の色に注目して散歩する。"), "周囲の色に注目して散歩する。（10分）");
+  assert.equal(ensureWeeklyDuration("10分、窓から見える色を観察する。"), "10分、窓から見える色を観察する。");
+  assert.equal(ensureWeeklyDuration("20分歩く。"), "20分歩く。");
 });
 
 test("入力の丸写しや曖昧な定型句をAI結果として採用しない", () => {
