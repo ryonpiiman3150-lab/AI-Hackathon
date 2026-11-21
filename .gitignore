@@ -1,5 +1,6 @@
 # Local secrets
 .env.local
+.env
 
 # OS and tool artifacts
 .DS_Store
